@@ -76,12 +76,33 @@ impl Lexer {
                     self.add_token(TokenType::Dot);
                 }
             }
+            '"' => self.add_string_token()?,
             _ if char.is_digit(10) => self.add_number_token(),
             ' ' | '\r' | '\t' => (),
             '\n' => self.line += 1,
             _ => bail!(format!("[line {}] Unexpected token '{}'", self.line, char)),
         }
 
+        Ok(())
+    }
+
+    fn add_string_token(&mut self) -> anyhow::Result<()> {
+        while self.peek() != '"' && !self.finished() {
+            self.next_char();
+        }
+
+        if self.finished() {
+            bail!(format!(
+                "Error: [line {}] missing closing quote in string",
+                self.line
+            ))
+        }
+
+        //consumes the '"'
+        self.next_char();
+
+        let string = &self.source[self.start + 1..self.current - 1];
+        self.add_token(TokenType::String(String::from(string)));
         Ok(())
     }
 
@@ -119,10 +140,16 @@ impl Lexer {
     }
 
     fn peek(&self) -> char {
+        if self.finished() {
+            return '\0';
+        }
         self.source.chars().nth(self.current).unwrap()
     }
 
     fn peek1(&self) -> char {
+        if self.current + 1 == self.source.len() {
+            return '\0';
+        }
         self.source.chars().nth(self.current + 1).unwrap()
     }
 
