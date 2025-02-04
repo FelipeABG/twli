@@ -1,4 +1,7 @@
-use crate::token::{Token, TokenType, KEYWORDS};
+use crate::{
+    syntax_error,
+    token::{Token, TokenType, KEYWORDS},
+};
 use anyhow::bail;
 
 pub struct Lexer {
@@ -23,7 +26,9 @@ impl Lexer {
     pub fn tokenize(&mut self) -> anyhow::Result<Vec<&Token>> {
         while !self.finished() {
             self.start = self.current;
-            self.scan_token()?;
+            if let Err(e) = self.scan_token() {
+                eprintln!("{e}")
+            }
         }
 
         Ok(self.tokens.iter().collect())
@@ -78,16 +83,16 @@ impl Lexer {
             }
             '"' => self.add_string_token()?,
             _ if char.is_digit(10) => self.add_number_token(),
-            _ if char.is_alphabetic() || char == '_' => self.add_identifier_token()?,
+            _ if char.is_alphabetic() || char == '_' => self.add_identifier_token(),
             ' ' | '\r' | '\t' => (),
             '\n' => self.line += 1,
-            _ => bail!(format!("[line {}] Unexpected token '{}'", self.line, char)),
+            _ => bail!(syntax_error(&self.line, "Unexpected Token")),
         }
 
         Ok(())
     }
 
-    fn add_identifier_token(&mut self) -> anyhow::Result<()> {
+    fn add_identifier_token(&mut self) {
         while self.peek().is_alphanumeric() || self.peek() == '_' {
             self.next_char();
         }
@@ -95,11 +100,10 @@ impl Lexer {
         let something = &self.source[self.start..self.current];
         if let Some(kw) = KEYWORDS.get(something) {
             self.add_token(kw.clone());
-            return Ok(());
+            return;
         }
 
         self.add_token(TokenType::Identifier);
-        Ok(())
     }
 
     fn add_string_token(&mut self) -> anyhow::Result<()> {
@@ -108,10 +112,7 @@ impl Lexer {
         }
 
         if self.finished() {
-            bail!(format!(
-                "Error: [line {}] missing closing quote in string",
-                self.line
-            ))
+            bail!(syntax_error(&self.line, "Unterminated string"))
         }
 
         //consumes the '"'
