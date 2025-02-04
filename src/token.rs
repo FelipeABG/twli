@@ -11,7 +11,7 @@ impl Token {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TokenType {
     //single char Tokens
     LeftParen,

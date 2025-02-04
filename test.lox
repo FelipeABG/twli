@@ -1,2 +1,4 @@
-"felipe";
-
+fn main() {
+  let my_name = "felipe";
+  print(my_name);
+}

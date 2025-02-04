@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::token::{Token, TokenType};
 use anyhow::bail;
 
@@ -6,16 +8,36 @@ pub struct Lexer {
     current: usize,
     start: usize,
     line: usize,
+    keywords: HashMap<String, TokenType>,
     tokens: Vec<Token>,
 }
 
 impl Lexer {
     pub fn new(source: String) -> Self {
+        let mut keywords = HashMap::new();
+        keywords.insert("let".to_string(), TokenType::Let);
+        keywords.insert("fn".to_string(), TokenType::Fn);
+        keywords.insert("while".to_string(), TokenType::While);
+        keywords.insert("for".to_string(), TokenType::For);
+        keywords.insert("in".to_string(), TokenType::In);
+        keywords.insert("and".to_string(), TokenType::And);
+        keywords.insert("or".to_string(), TokenType::Or);
+        keywords.insert("if".to_string(), TokenType::If);
+        keywords.insert("else".to_string(), TokenType::Else);
+        keywords.insert("null".to_string(), TokenType::Null);
+        keywords.insert("return".to_string(), TokenType::Return);
+        keywords.insert("true".to_string(), TokenType::True);
+        keywords.insert("false".to_string(), TokenType::False);
+        keywords.insert("this".to_string(), TokenType::This);
+        keywords.insert("super".to_string(), TokenType::Super);
+        keywords.insert("class".to_string(), TokenType::Class);
+
         Self {
             source,
             current: 0,
             start: 0,
             line: 1,
+            keywords,
             tokens: Vec::new(),
         }
     }
@@ -78,11 +100,27 @@ impl Lexer {
             }
             '"' => self.add_string_token()?,
             _ if char.is_digit(10) => self.add_number_token(),
+            _ if char.is_alphabetic() || char == '_' => self.add_identifier_token()?,
             ' ' | '\r' | '\t' => (),
             '\n' => self.line += 1,
             _ => bail!(format!("[line {}] Unexpected token '{}'", self.line, char)),
         }
 
+        Ok(())
+    }
+
+    fn add_identifier_token(&mut self) -> anyhow::Result<()> {
+        while self.peek().is_alphanumeric() || self.peek() == '_' {
+            self.next_char();
+        }
+
+        let something = &self.source[self.start..self.current];
+        if let Some(kw) = self.keywords.get(something) {
+            self.add_token(kw.clone());
+            return Ok(());
+        }
+
+        self.add_token(TokenType::Identifier);
         Ok(())
     }
 
