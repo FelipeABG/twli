@@ -1,6 +1,6 @@
 use std::fs::read_to_string;
 
-use test_interp::lexer::Lexer;
+use interp::lexer::Lexer;
 
 fn main() {
     let source = read_to_string("test.lox").unwrap();
