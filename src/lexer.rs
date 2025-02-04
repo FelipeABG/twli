@@ -23,7 +23,8 @@ impl Lexer {
         }
     }
 
-    pub fn tokenize(&mut self) -> anyhow::Result<Vec<&Token>> {
+    pub fn tokenize(&mut self) -> anyhow::Result<Vec<Token>> {
+        self.reset();
         while !self.finished() {
             self.start = self.current;
             if let Err(e) = self.scan_token() {
@@ -31,7 +32,14 @@ impl Lexer {
             }
         }
 
-        Ok(self.tokens.iter().collect())
+        Ok(self.tokens.clone())
+    }
+
+    fn reset(&mut self) {
+        self.current = 0;
+        self.start = 0;
+        self.line = 1;
+        self.tokens = Vec::new();
     }
 
     fn scan_token(&mut self) -> anyhow::Result<()> {

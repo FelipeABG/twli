@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use once_cell::sync::Lazy;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token {
     pub lexeme: String,
     pub ty: TokenType,
