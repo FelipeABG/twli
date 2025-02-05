@@ -1,7 +1,7 @@
 use anyhow::bail;
 
 use crate::{
-    grammar::{Binary, Expression, Literal, Unary},
+    grammar::{Binary, Call, Expression, Literal, Unary},
     syntax_error,
     token::{Token, TokenType},
 };
@@ -103,32 +103,67 @@ impl Parser {
     fn parse_unary(&mut self) -> anyhow::Result<Expression> {
         if matches!(self.peek().ty, TokenType::Minus | TokenType::Bang) {
             let op = self.next_token().clone();
-            let expr = self.parse_literal()?;
+            let expr = self.parse_primary()?;
             return Ok(Expression::Unary(Unary::new(op, Box::new(expr))));
         }
 
-        self.parse_literal()
+        self.parse_call()
     }
 
-    fn parse_literal(&mut self) -> anyhow::Result<Expression> {
-        let lit = self.next_token().clone();
-        match lit.ty {
+    fn parse_call(&mut self) -> anyhow::Result<Expression> {
+        let mut callee = self.parse_primary()?;
+
+        loop {
+            if let TokenType::LeftParen = self.peek().ty {
+                //consumes the '(' token
+                self.next_token();
+                callee = self.parse_fn_args(callee)?;
+            } else {
+                break;
+            }
+        }
+
+        Ok(callee)
+    }
+
+    fn parse_primary(&mut self) -> anyhow::Result<Expression> {
+        let primary = self.next_token().clone();
+        match primary.ty {
             TokenType::Number(n) => Ok(Expression::Literal(Literal::Number(n))),
             TokenType::String(s) => Ok(Expression::Literal(Literal::Str(s))),
             TokenType::False => Ok(Expression::Literal(Literal::Boolean(false))),
             TokenType::True => Ok(Expression::Literal(Literal::Boolean(true))),
             TokenType::Null => Ok(Expression::Literal(Literal::Null)),
+            TokenType::Identifier => Ok(Expression::Ident(primary)),
             TokenType::LeftParen => {
                 let expr = self.parse_expression()?;
                 self.expect(
                     TokenType::RightParen,
                     "Expected ')' after expression",
-                    &lit.line,
+                    &primary.line,
                 )?;
                 Ok(Expression::Grouping(Box::new(expr)))
             }
-            _ => bail!(syntax_error(&lit.line, "Expected expression.")),
+            _ => bail!(syntax_error(&primary.line, "Expected expression.")),
         }
+    }
+
+    fn parse_fn_args(&mut self, e: Expression) -> anyhow::Result<Expression> {
+        let mut args = Vec::new();
+        while !matches!(self.peek().ty, TokenType::RightParen) {
+            let arg = self.parse_expression()?;
+            args.push(arg);
+            if let TokenType::Comma = self.peek().ty {
+                self.next_token();
+            }
+        }
+
+        self.expect(
+            TokenType::RightParen,
+            "Expected ')' after function arguments",
+            &self.peek().line.clone(),
+        )?;
+        Ok(Expression::Call(Call::new(Box::new(e), args)))
     }
 
     fn expect(&mut self, ty: TokenType, msg: &str, line: &usize) -> anyhow::Result<&Token> {
