@@ -94,7 +94,10 @@ impl Lexer {
             _ if char.is_alphabetic() || char == '_' => self.add_identifier_token(),
             ' ' | '\r' | '\t' => (),
             '\n' => self.line += 1,
-            _ => bail!(syntax_error(&self.line, "Unexpected Token")),
+            _ => bail!(syntax_error(
+                &self.line,
+                &format!("Unexpected Token '{}'", char)
+            )),
         }
 
         Ok(())

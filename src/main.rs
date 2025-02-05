@@ -1,15 +1,11 @@
-use interp::lexer::Lexer;
+use interp::{lexer::Lexer, parser::Parser};
 use std::fs::read_to_string;
 
 fn main() {
     let source = read_to_string("test.lox").unwrap();
     let mut lexer = Lexer::new(source.trim().to_string());
-    match lexer.tokenize() {
-        Ok(tokens) => {
-            for token in tokens {
-                println!("{:?}", token)
-            }
-        }
-        Err(err) => println!("{err}"),
-    }
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let expr = parser.parse().unwrap();
+    println!("{:#?}", expr)
 }

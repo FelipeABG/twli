@@ -1,4 +1,2 @@
-fn main() {
-  let my_name = "felipe";
-  print(my_name);
-}
+(5 + 10) - 20
+
