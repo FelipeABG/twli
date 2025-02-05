@@ -21,7 +21,31 @@ impl Parser {
     }
 
     fn parse_expression(&mut self) -> anyhow::Result<Expression> {
-        self.parse_equality()
+        self.parse_or()
+    }
+
+    fn parse_or(&mut self) -> anyhow::Result<Expression> {
+        let mut left = self.parse_and()?;
+
+        while let TokenType::Or = self.peek().ty {
+            let op = self.next_token().clone();
+            let right = self.parse_or()?;
+            left = Expression::Binary(Binary::new(Box::new(left), op, Box::new(right)))
+        }
+
+        Ok(left)
+    }
+
+    fn parse_and(&mut self) -> anyhow::Result<Expression> {
+        let mut left = self.parse_equality()?;
+
+        while let TokenType::And = self.peek().ty {
+            let op = self.next_token().clone();
+            let right = self.parse_equality()?;
+            left = Expression::Binary(Binary::new(Box::new(left), op, Box::new(right)))
+        }
+
+        Ok(left)
     }
 
     fn parse_equality(&mut self) -> anyhow::Result<Expression> {

@@ -10,6 +10,7 @@ pub struct Lexer {
     start: usize,
     line: usize,
     tokens: Vec<Token>,
+    errors: String,
 }
 
 impl Lexer {
@@ -20,6 +21,7 @@ impl Lexer {
             start: 0,
             line: 1,
             tokens: Vec::new(),
+            errors: "".to_string(),
         }
     }
 
@@ -28,11 +30,15 @@ impl Lexer {
         while !self.finished() {
             self.start = self.current;
             if let Err(e) = self.scan_token() {
-                eprintln!("{e}")
+                self.errors.push_str(&e.to_string());
             }
         }
 
-        Ok(self.tokens.clone())
+        if self.errors.is_empty() {
+            return Ok(self.tokens.clone());
+        }
+
+        bail!(self.errors.clone())
     }
 
     fn reset(&mut self) {
