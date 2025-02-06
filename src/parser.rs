@@ -1,7 +1,7 @@
 use anyhow::bail;
 
 use crate::{
-    grammar::{Binary, Call, ExprStmt, Expression, Literal, Statement, Unary},
+    grammar::{Binary, Call, ExprStmt, Expression, Literal, Range, Statement, Unary},
     syntax_error,
     token::{Token, TokenType},
 };
@@ -52,7 +52,22 @@ impl Parser {
     }
 
     fn parse_expression(&mut self) -> anyhow::Result<Expression> {
-        self.parse_or()
+        self.parse_range()
+    }
+
+    fn parse_range(&mut self) -> anyhow::Result<Expression> {
+        let left = self.parse_or()?;
+
+        if let TokenType::DotDot = self.peek().ty {
+            self.next_token();
+            let right = self.parse_or()?;
+            return Ok(Expression::Range(Range::new(
+                Box::new(left),
+                Box::new(right),
+            )));
+        }
+
+        Ok(left)
     }
 
     fn parse_or(&mut self) -> anyhow::Result<Expression> {
