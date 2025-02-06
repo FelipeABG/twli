@@ -5,11 +5,13 @@ use crate::token::Token;
 define! {
 
     enum statement ->   exprStmt(ExprStmt)
-                        | letStmt(LetStmt);
+                        | letStmt(LetStmt)
+                        | returnStmt(ReturnStmt);
 
 
+    struct returnStmt -> expr(Option<Expression>);
     struct exprStmt -> expr(Expression);
-    struct letStmt -> ident(Token), init(Option<Box<Expression>>);
+    struct letStmt -> ident(Token), init(Option<Expression>);
 
 
     enum expression ->  literal(Literal)

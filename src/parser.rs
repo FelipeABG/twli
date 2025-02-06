@@ -1,7 +1,9 @@
 use anyhow::bail;
 
 use crate::{
-    grammar::{Binary, Call, ExprStmt, Expression, LetStmt, Literal, Range, Statement, Unary},
+    grammar::{
+        Binary, Call, ExprStmt, Expression, LetStmt, Literal, Range, ReturnStmt, Statement, Unary,
+    },
     syntax_error,
     token::{Token, TokenType},
 };
@@ -44,7 +46,29 @@ impl Parser {
         if let TokenType::Let = self.peek().ty {
             return self.parse_let_statement();
         }
+
+        if let TokenType::Return = self.peek().ty {
+            return self.parse_return_statement();
+        }
+
         self.parse_expression_statement()
+    }
+
+    fn parse_return_statement(&mut self) -> anyhow::Result<Statement> {
+        let return_kw = self.next_token().clone();
+
+        let mut expr = None;
+        if !matches!(self.peek().ty, TokenType::Semicolon) {
+            expr = Some(self.parse_expression()?);
+        }
+
+        self.expect(
+            TokenType::Semicolon,
+            "Expected ';' after return statement",
+            return_kw.line,
+        )?;
+
+        Ok(Statement::ReturnStmt(ReturnStmt::new(expr)))
     }
 
     fn parse_let_statement(&mut self) -> anyhow::Result<Statement> {
@@ -63,7 +87,7 @@ impl Parser {
         let mut init = None;
         if let TokenType::Equal = self.peek().ty {
             self.next_token();
-            init = Some(Box::new(self.parse_expression()?));
+            init = Some(self.parse_expression()?);
         }
 
         self.expect(
@@ -223,7 +247,10 @@ impl Parser {
                 )?;
                 Ok(Expression::Grouping(Box::new(expr)))
             }
-            _ => bail!(syntax_error(&primary.line, "Expected expression")),
+            _ => bail!(syntax_error(
+                &primary.line,
+                &format!("Expected expression. Found {:?}", primary.lexeme)
+            )),
         }
     }
 
@@ -279,22 +306,24 @@ impl Parser {
     }
 
     fn peek(&self) -> &Token {
-        if self.finished() {
-            return &self.tokens[self.current - 1];
-        }
-        &self.tokens[self.current]
+        self.tokens
+            .get(self.current)
+            .unwrap_or_else(|| self.tokens.last().expect("Token list is empty"))
     }
 
     fn peek_previous(&self) -> &Token {
-        if self.finished() {
-            return &self.tokens[self.current - 2];
+        if self.current == 0 {
+            panic!("No previous token available");
         }
         &self.tokens[self.current - 1]
     }
 
     fn next_token(&mut self) -> &Token {
-        let result = &self.tokens[self.current];
+        if self.finished() {
+            return self.peek();
+        }
+        let token = &self.tokens[self.current];
         self.current += 1;
-        result
+        token
     }
 }
