@@ -11,8 +11,10 @@ define! {
                         | returnStmt(ReturnStmt)
                         | whileStmt(WhileStmt)
                         | fotStmt(ForStmt)
+                        | ifStmt(IfStmt)
                         | block(Vec<Declaration>);
 
+    struct ifStmt -> condition(Expression), if_branch(Box<Statement>), else_branch(Option<Box<Statement>>);
     struct forStmt -> ident(Token), range(Expression), body(Box<Statement>);
     struct whileStmt -> condition(Expression), body(Box<Statement>);
     struct returnStmt -> expr(Option<Expression>);

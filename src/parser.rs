@@ -2,7 +2,7 @@ use anyhow::bail;
 
 use crate::{
     grammar::{
-        Binary, Call, Declaration, ExprStmt, Expression, ForStmt, LetStmt, Literal, Range,
+        Binary, Call, Declaration, ExprStmt, Expression, ForStmt, IfStmt, LetStmt, Literal, Range,
         ReturnStmt, Statement, Unary, WhileStmt,
     },
     syntax_error,
@@ -68,7 +68,29 @@ impl Parser {
             return self.parse_for_statement();
         }
 
+        if let TokenType::If = self.peek().ty {
+            return self.parse_if_statement();
+        }
+
         self.parse_expression_statement()
+    }
+
+    fn parse_if_statement(&mut self) -> anyhow::Result<Statement> {
+        let _if_kw = self.next_token().clone();
+        let condition = self.parse_expression()?;
+        let if_branch = self.parse_statement()?;
+
+        let mut else_branch = None;
+        if let TokenType::Else = self.peek().ty {
+            let _else_kw = self.next_token();
+            else_branch = Some(Box::new(self.parse_statement()?));
+        }
+
+        Ok(Statement::IfStmt(IfStmt::new(
+            condition,
+            Box::new(if_branch),
+            else_branch,
+        )))
     }
 
     fn parse_for_statement(&mut self) -> anyhow::Result<Statement> {
