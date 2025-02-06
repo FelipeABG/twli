@@ -2,8 +2,8 @@ use anyhow::bail;
 
 use crate::{
     grammar::{
-        Binary, Call, Declaration, ExprStmt, Expression, FnDecl, ForStmt, IfStmt, LetDecl, Literal,
-        Range, ReturnStmt, Statement, StmtDecl, Unary, WhileStmt,
+        Binary, Call, Declaration, ExprStmt, Expression, FnDecl, FnItem, ForStmt, IfStmt, Item,
+        LetDecl, Literal, Range, ReturnStmt, Statement, StmtDecl, Unary, WhileStmt,
     },
     syntax_error,
     token::{Token, TokenType},
@@ -24,10 +24,10 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> anyhow::Result<Vec<Declaration>> {
+    pub fn parse(&mut self) -> anyhow::Result<Vec<Item>> {
         let mut stmts = Vec::new();
         while !self.finished() {
-            match self.parse_declaration() {
+            match self.parse_item() {
                 Ok(s) => stmts.push(s),
                 Err(e) => {
                     self.errors.push_str(&e.to_string());
@@ -43,6 +43,18 @@ impl Parser {
         bail!(self.errors.clone())
     }
 
+    fn parse_item(&mut self) -> anyhow::Result<Item> {
+        if let TokenType::Fn = self.peek().ty {
+            if let Declaration::FnDecl(fun) = self.parse_declaration()? {
+                return Ok(Item::FnItem(FnItem::new(fun)));
+            }
+        }
+
+        bail!(syntax_error(
+            &self.peek().line,
+            "Expected only items (fn, class, ...) in top level"
+        ))
+    }
     fn parse_declaration(&mut self) -> anyhow::Result<Declaration> {
         if let TokenType::Let = self.peek().ty {
             return self.parse_let_declaration();
@@ -68,7 +80,6 @@ impl Parser {
             .clone();
 
         let params = self.parse_fn_params()?;
-        println!("{:?}", self.peek().ty);
         let body = self.parse_statement()?;
         Ok(Declaration::FnDecl(FnDecl::new(ident, params, body)))
     }

@@ -1,0 +1,8 @@
+fn main() {
+  let a = 10;
+}
+
+fn foo() {
+  let b = 20;
+}
+

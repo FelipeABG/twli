@@ -4,6 +4,10 @@ use crate::token::Token;
 
 define! {
 
+    enum item -> fnItem(FnItem);
+
+    struct fnItem -> fun(FnDecl);
+
     enum declaration -> fnDecl(FnDecl)
                         | letDecl(LetDecl)
                         | stmtDecl(StmtDecl);
