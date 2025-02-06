@@ -4,10 +4,15 @@ use crate::token::Token;
 
 define! {
 
-    enum declaration -> stmtDecl(Statement);
+    enum declaration -> fnDecl(FnDecl)
+                        | letDecl(LetDecl)
+                        | stmtDecl(StmtDecl);
+
+    struct stmtDecl -> stmt(Statement);
+    struct fnDecl -> ident(Token), params(Vec<Token>), body(Statement);
+    struct letDecl -> ident(Token), init(Option<Expression>);
 
     enum statement ->   exprStmt(ExprStmt)
-                        | letStmt(LetStmt)
                         | returnStmt(ReturnStmt)
                         | whileStmt(WhileStmt)
                         | fotStmt(ForStmt)
@@ -19,7 +24,6 @@ define! {
     struct whileStmt -> condition(Expression), body(Box<Statement>);
     struct returnStmt -> expr(Option<Expression>);
     struct exprStmt -> expr(Expression);
-    struct letStmt -> ident(Token), init(Option<Expression>);
 
 
     enum expression ->  literal(Literal)

@@ -2,8 +2,8 @@ use anyhow::bail;
 
 use crate::{
     grammar::{
-        Binary, Call, Declaration, ExprStmt, Expression, ForStmt, IfStmt, LetStmt, Literal, Range,
-        ReturnStmt, Statement, Unary, WhileStmt,
+        Binary, Call, Declaration, ExprStmt, Expression, FnDecl, ForStmt, IfStmt, LetDecl, Literal,
+        Range, ReturnStmt, Statement, StmtDecl, Unary, WhileStmt,
     },
     syntax_error,
     token::{Token, TokenType},
@@ -44,14 +44,63 @@ impl Parser {
     }
 
     fn parse_declaration(&mut self) -> anyhow::Result<Declaration> {
-        Ok(Declaration::StmtDecl(self.parse_statement()?))
+        if let TokenType::Let = self.peek().ty {
+            return self.parse_let_declaration();
+        }
+
+        if let TokenType::Fn = self.peek().ty {
+            return self.parse_fn_declaration();
+        }
+
+        Ok(Declaration::StmtDecl(StmtDecl::new(
+            self.parse_statement()?,
+        )))
+    }
+
+    fn parse_fn_declaration(&mut self) -> anyhow::Result<Declaration> {
+        let fn_kw = self.next_token().clone();
+        let ident = self
+            .expect(
+                TokenType::Identifier,
+                "Expected function identifier",
+                fn_kw.line,
+            )?
+            .clone();
+
+        let params = self.parse_fn_params()?;
+        println!("{:?}", self.peek().ty);
+        let body = self.parse_statement()?;
+        Ok(Declaration::FnDecl(FnDecl::new(ident, params, body)))
+    }
+
+    fn parse_let_declaration(&mut self) -> anyhow::Result<Declaration> {
+        let let_kw = self.next_token().clone();
+        let ident = self
+            .expect(
+                TokenType::Identifier,
+                &format!(
+                    "Expected identifier after let declaration. Found {:?}",
+                    self.peek().lexeme,
+                ),
+                let_kw.line,
+            )?
+            .clone();
+
+        let mut init = None;
+        if let TokenType::Equal = self.peek().ty {
+            self.next_token();
+            init = Some(self.parse_expression()?);
+        }
+
+        self.expect(
+            TokenType::Semicolon,
+            "Expected ';' after let declaration",
+            let_kw.line,
+        )?;
+        Ok(Declaration::LetDecl(LetDecl::new(ident, init)))
     }
 
     fn parse_statement(&mut self) -> anyhow::Result<Statement> {
-        if let TokenType::Let = self.peek().ty {
-            return self.parse_let_statement();
-        }
-
         if let TokenType::Return = self.peek().ty {
             return self.parse_return_statement();
         }
@@ -155,7 +204,6 @@ impl Parser {
             "Expected '}' at end of block",
             left_brace_kw.line,
         )?;
-
         Ok(Statement::Block(block_content))
     }
 
@@ -174,33 +222,6 @@ impl Parser {
         )?;
 
         Ok(Statement::ReturnStmt(ReturnStmt::new(expr)))
-    }
-
-    fn parse_let_statement(&mut self) -> anyhow::Result<Statement> {
-        let let_kw = self.next_token().clone();
-        let ident = self
-            .expect(
-                TokenType::Identifier,
-                &format!(
-                    "Expected identifier after let declaration. Found {:?}",
-                    self.peek().lexeme,
-                ),
-                let_kw.line,
-            )?
-            .clone();
-
-        let mut init = None;
-        if let TokenType::Equal = self.peek().ty {
-            self.next_token();
-            init = Some(self.parse_expression()?);
-        }
-
-        self.expect(
-            TokenType::Semicolon,
-            "Expected ';' after let declaration",
-            let_kw.line,
-        )?;
-        Ok(Statement::LetStmt(LetStmt::new(ident, init)))
     }
 
     fn parse_expression_statement(&mut self) -> anyhow::Result<Statement> {
@@ -357,6 +378,38 @@ impl Parser {
                 &format!("Expected expression. Found {:?}", primary.lexeme)
             )),
         }
+    }
+
+    fn parse_fn_params(&mut self) -> anyhow::Result<Vec<Token>> {
+        let left_paren = self
+            .expect(
+                TokenType::LeftParen,
+                "Expected '(' before function parameters",
+                self.peek_previous().line,
+            )?
+            .clone();
+
+        let mut params = Vec::new();
+        while !matches!(self.peek().ty, TokenType::RightParen) {
+            let arg = self
+                .expect(
+                    TokenType::Identifier,
+                    "Expected parameters identifiers",
+                    left_paren.line,
+                )?
+                .clone();
+            params.push(arg);
+            if let TokenType::Comma = self.peek().ty {
+                self.next_token();
+            }
+        }
+
+        self.expect(
+            TokenType::RightParen,
+            "Expected ')' after function parameters",
+            self.peek_previous().line,
+        )?;
+        Ok(params)
     }
 
     fn parse_fn_args(&mut self, e: Expression) -> anyhow::Result<Expression> {
