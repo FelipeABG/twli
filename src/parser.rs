@@ -3,7 +3,7 @@ use anyhow::bail;
 use crate::{
     grammar::{
         Binary, Call, Declaration, ExprStmt, Expression, LetStmt, Literal, Range, ReturnStmt,
-        Statement, Unary,
+        Statement, Unary, WhileStmt,
     },
     syntax_error,
     token::{Token, TokenType},
@@ -60,7 +60,21 @@ impl Parser {
             return self.parse_block_statement();
         }
 
+        if let TokenType::While = self.peek().ty {
+            return self.parse_while_statement();
+        }
+
         self.parse_expression_statement()
+    }
+
+    fn parse_while_statement(&mut self) -> anyhow::Result<Statement> {
+        let _while_kw = self.next_token().clone();
+        let condition = self.parse_expression()?;
+        let body = self.parse_statement()?;
+        Ok(Statement::WhileStmt(WhileStmt::new(
+            condition,
+            Box::new(body),
+        )))
     }
 
     fn parse_block_statement(&mut self) -> anyhow::Result<Statement> {

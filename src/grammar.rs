@@ -9,10 +9,11 @@ define! {
     enum statement ->   exprStmt(ExprStmt)
                         | letStmt(LetStmt)
                         | returnStmt(ReturnStmt)
+                        | whileStmt(WhileStmt)
                         | block(Vec<Declaration>);
 
 
-
+    struct whileStmt -> condition(Expression), body(Box<Statement>);
     struct returnStmt -> expr(Option<Expression>);
     struct exprStmt -> expr(Expression);
     struct letStmt -> ident(Token), init(Option<Expression>);
