@@ -2,8 +2,8 @@ use anyhow::bail;
 
 use crate::{
     grammar::{
-        Binary, Call, Declaration, ExprStmt, Expression, LetStmt, Literal, Range, ReturnStmt,
-        Statement, Unary, WhileStmt,
+        Binary, Call, Declaration, ExprStmt, Expression, ForStmt, LetStmt, Literal, Range,
+        ReturnStmt, Statement, Unary, WhileStmt,
     },
     syntax_error,
     token::{Token, TokenType},
@@ -64,7 +64,39 @@ impl Parser {
             return self.parse_while_statement();
         }
 
+        if let TokenType::For = self.peek().ty {
+            return self.parse_for_statement();
+        }
+
         self.parse_expression_statement()
+    }
+
+    fn parse_for_statement(&mut self) -> anyhow::Result<Statement> {
+        let for_kw = self.next_token().clone();
+        let ident = self
+            .expect(TokenType::Identifier, "Expected identifier", for_kw.line)?
+            .clone();
+
+        self.expect(
+            TokenType::In,
+            "Expectected 'in' keyword after variable declaration",
+            for_kw.line,
+        )?;
+
+        let range = self.parse_expression()?;
+        let Expression::Range(_) = range else {
+            bail!(syntax_error(
+                &for_kw.line,
+                &format!("Expected range expression in 'for' declaration",)
+            ))
+        };
+
+        let body = self.parse_statement()?;
+        Ok(Statement::FotStmt(ForStmt::new(
+            ident,
+            range,
+            Box::new(body),
+        )))
     }
 
     fn parse_while_statement(&mut self) -> anyhow::Result<Statement> {
@@ -81,7 +113,18 @@ impl Parser {
         let left_brace_kw = self.next_token().clone();
         let mut block_content = Vec::new();
 
-        while !matches!(self.peek().ty, TokenType::RightBrace) {
+        loop {
+            if self.finished() {
+                bail!(syntax_error(
+                    &left_brace_kw.line,
+                    "Expected '}' at end of block"
+                ))
+            }
+
+            if matches!(self.peek().ty, TokenType::RightBrace) {
+                break;
+            }
+
             block_content.push(self.parse_declaration()?);
         }
 

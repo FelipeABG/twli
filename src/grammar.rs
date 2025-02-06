@@ -10,9 +10,10 @@ define! {
                         | letStmt(LetStmt)
                         | returnStmt(ReturnStmt)
                         | whileStmt(WhileStmt)
+                        | fotStmt(ForStmt)
                         | block(Vec<Declaration>);
 
-
+    struct forStmt -> ident(Token), range(Expression), body(Box<Statement>);
     struct whileStmt -> condition(Expression), body(Box<Statement>);
     struct returnStmt -> expr(Option<Expression>);
     struct exprStmt -> expr(Expression);
