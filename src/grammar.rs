@@ -4,10 +4,12 @@ use crate::token::Token;
 
 define! {
 
-    enum statement ->   exprStmt(ExprStmt);
+    enum statement ->   exprStmt(ExprStmt)
+                        | letStmt(LetStmt);
 
 
     struct exprStmt -> expr(Expression);
+    struct letStmt -> ident(Token), init(Option<Box<Expression>>);
 
 
     enum expression ->  literal(Literal)

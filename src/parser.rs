@@ -1,7 +1,7 @@
 use anyhow::bail;
 
 use crate::{
-    grammar::{Binary, Call, ExprStmt, Expression, Literal, Range, Statement, Unary},
+    grammar::{Binary, Call, ExprStmt, Expression, LetStmt, Literal, Range, Statement, Unary},
     syntax_error,
     token::{Token, TokenType},
 };
@@ -26,7 +26,10 @@ impl Parser {
         while !self.finished() {
             match self.parse_statement() {
                 Ok(s) => stmts.push(s),
-                Err(e) => self.errors.push_str(&e.to_string()),
+                Err(e) => {
+                    self.errors.push_str(&e.to_string());
+                    self.synchronize()
+                }
             }
         }
 
@@ -38,7 +41,37 @@ impl Parser {
     }
 
     fn parse_statement(&mut self) -> anyhow::Result<Statement> {
+        if let TokenType::Let = self.peek().ty {
+            return self.parse_let_statement();
+        }
         self.parse_expression_statement()
+    }
+
+    fn parse_let_statement(&mut self) -> anyhow::Result<Statement> {
+        let let_kw = self.next_token().clone();
+        let ident = self
+            .expect(
+                TokenType::Identifier,
+                &format!(
+                    "Expected identifier after let declaration. Found {:?}",
+                    self.peek().lexeme,
+                ),
+                let_kw.line,
+            )?
+            .clone();
+
+        let mut init = None;
+        if let TokenType::Equal = self.peek().ty {
+            self.next_token();
+            init = Some(Box::new(self.parse_expression()?));
+        }
+
+        self.expect(
+            TokenType::Semicolon,
+            "Expected ';' after let declaration",
+            let_kw.line,
+        )?;
+        Ok(Statement::LetStmt(LetStmt::new(ident, init)))
     }
 
     fn parse_expression_statement(&mut self) -> anyhow::Result<Statement> {
@@ -190,7 +223,7 @@ impl Parser {
                 )?;
                 Ok(Expression::Grouping(Box::new(expr)))
             }
-            _ => bail!(syntax_error(&primary.line, "Expected expression.")),
+            _ => bail!(syntax_error(&primary.line, "Expected expression")),
         }
     }
 
@@ -210,6 +243,27 @@ impl Parser {
             self.peek_previous().line,
         )?;
         Ok(Expression::Call(Call::new(Box::new(e), args)))
+    }
+
+    fn synchronize(&mut self) {
+        self.next_token();
+
+        while !self.finished() {
+            if let TokenType::Semicolon = self.peek_previous().ty {
+                return;
+            }
+
+            match self.peek().ty {
+                TokenType::Class
+                | TokenType::Let
+                | TokenType::Fn
+                | TokenType::For
+                | TokenType::While
+                | TokenType::If
+                | TokenType::Return => return,
+                _ => self.next_token(),
+            };
+        }
     }
 
     fn expect(&mut self, ty: TokenType, msg: &str, line: usize) -> anyhow::Result<&Token> {
