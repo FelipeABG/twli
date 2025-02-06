@@ -1,7 +1,7 @@
 use anyhow::bail;
 
 use crate::{
-    grammar::{Binary, Call, Expression, Literal, Unary},
+    grammar::{Binary, Call, ExprStmt, Expression, Literal, Statement, Unary},
     syntax_error,
     token::{Token, TokenType},
 };
@@ -9,15 +9,46 @@ use crate::{
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
+    errors: String,
 }
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens, current: 0 }
+        Self {
+            tokens,
+            current: 0,
+            errors: "".to_string(),
+        }
     }
 
-    pub fn parse(&mut self) -> anyhow::Result<Expression> {
-        self.parse_expression()
+    pub fn parse(&mut self) -> anyhow::Result<Vec<Statement>> {
+        let mut stmts = Vec::new();
+        while !self.finished() {
+            match self.parse_statement() {
+                Ok(s) => stmts.push(s),
+                Err(e) => self.errors.push_str(&e.to_string()),
+            }
+        }
+
+        if self.errors.is_empty() {
+            return Ok(stmts);
+        }
+
+        bail!(self.errors.clone())
+    }
+
+    fn parse_statement(&mut self) -> anyhow::Result<Statement> {
+        self.parse_expression_statement()
+    }
+
+    fn parse_expression_statement(&mut self) -> anyhow::Result<Statement> {
+        let expr = self.parse_expression()?;
+        self.expect(
+            TokenType::Semicolon,
+            "Expected ';' after expression",
+            self.peek_previous().line,
+        )?;
+        Ok(Statement::ExprStmt(ExprStmt::new(expr)))
     }
 
     fn parse_expression(&mut self) -> anyhow::Result<Expression> {
@@ -140,7 +171,7 @@ impl Parser {
                 self.expect(
                     TokenType::RightParen,
                     "Expected ')' after expression",
-                    &primary.line,
+                    primary.line,
                 )?;
                 Ok(Expression::Grouping(Box::new(expr)))
             }
@@ -161,17 +192,17 @@ impl Parser {
         self.expect(
             TokenType::RightParen,
             "Expected ')' after function arguments",
-            &self.peek().line.clone(),
+            self.peek_previous().line,
         )?;
         Ok(Expression::Call(Call::new(Box::new(e), args)))
     }
 
-    fn expect(&mut self, ty: TokenType, msg: &str, line: &usize) -> anyhow::Result<&Token> {
+    fn expect(&mut self, ty: TokenType, msg: &str, line: usize) -> anyhow::Result<&Token> {
         if self.peek().ty == ty {
             return Ok(self.next_token());
         }
 
-        bail!(syntax_error(line, msg))
+        bail!(syntax_error(&line, msg))
     }
 
     fn finished(&self) -> bool {
@@ -183,6 +214,13 @@ impl Parser {
             return &self.tokens[self.current - 1];
         }
         &self.tokens[self.current]
+    }
+
+    fn peek_previous(&self) -> &Token {
+        if self.finished() {
+            return &self.tokens[self.current - 2];
+        }
+        &self.tokens[self.current - 1]
     }
 
     fn next_token(&mut self) -> &Token {

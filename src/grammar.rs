@@ -3,6 +3,13 @@ use define_macro::define;
 use crate::token::Token;
 
 define! {
+
+    enum statement ->   exprStmt(ExprStmt);
+
+
+    struct exprStmt -> expr(Expression);
+
+
     enum expression ->  literal(Literal)
                         | ident(Token)
                         | call(Call)
