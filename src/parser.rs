@@ -2,7 +2,8 @@ use anyhow::bail;
 
 use crate::{
     grammar::{
-        Binary, Call, ExprStmt, Expression, LetStmt, Literal, Range, ReturnStmt, Statement, Unary,
+        Binary, Call, Declaration, ExprStmt, Expression, LetStmt, Literal, Range, ReturnStmt,
+        Statement, Unary,
     },
     syntax_error,
     token::{Token, TokenType},
@@ -23,10 +24,10 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> anyhow::Result<Vec<Statement>> {
+    pub fn parse(&mut self) -> anyhow::Result<Vec<Declaration>> {
         let mut stmts = Vec::new();
         while !self.finished() {
-            match self.parse_statement() {
+            match self.parse_declaration() {
                 Ok(s) => stmts.push(s),
                 Err(e) => {
                     self.errors.push_str(&e.to_string());
@@ -42,6 +43,10 @@ impl Parser {
         bail!(self.errors.clone())
     }
 
+    fn parse_declaration(&mut self) -> anyhow::Result<Declaration> {
+        Ok(Declaration::StmtDecl(self.parse_statement()?))
+    }
+
     fn parse_statement(&mut self) -> anyhow::Result<Statement> {
         if let TokenType::Let = self.peek().ty {
             return self.parse_let_statement();
@@ -51,7 +56,28 @@ impl Parser {
             return self.parse_return_statement();
         }
 
+        if let TokenType::LeftBrace = self.peek().ty {
+            return self.parse_block_statement();
+        }
+
         self.parse_expression_statement()
+    }
+
+    fn parse_block_statement(&mut self) -> anyhow::Result<Statement> {
+        let left_brace_kw = self.next_token().clone();
+        let mut block_content = Vec::new();
+
+        while !matches!(self.peek().ty, TokenType::RightBrace) {
+            block_content.push(self.parse_declaration()?);
+        }
+
+        self.expect(
+            TokenType::RightBrace,
+            "Expected '}' at end of block",
+            left_brace_kw.line,
+        )?;
+
+        Ok(Statement::Block(block_content))
     }
 
     fn parse_return_statement(&mut self) -> anyhow::Result<Statement> {

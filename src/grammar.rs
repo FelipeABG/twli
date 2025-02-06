@@ -4,9 +4,13 @@ use crate::token::Token;
 
 define! {
 
+    enum declaration -> stmtDecl(Statement);
+
     enum statement ->   exprStmt(ExprStmt)
                         | letStmt(LetStmt)
-                        | returnStmt(ReturnStmt);
+                        | returnStmt(ReturnStmt)
+                        | block(Vec<Declaration>);
+
 
 
     struct returnStmt -> expr(Option<Expression>);
