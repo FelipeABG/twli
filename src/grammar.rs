@@ -36,8 +36,10 @@ define! {
                         | range(Range)
                         | unary(Unary)
                         | binary(Binary)
+                        | logical(Logical)
                         | grouping(Box<Expression>);
 
+    struct logical ->left(Box<Expression>), operator(Token), right(Box<Expression>);
     struct binary -> left(Box<Expression>), operator(Token), right(Box<Expression>);
     struct unary -> operator(Token), expr(Box<Expression>);
     struct range -> left(Box<Expression>), right(Box<Expression>);

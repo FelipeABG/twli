@@ -3,7 +3,7 @@ use anyhow::bail;
 use crate::{
     grammar::{
         Binary, Call, Declaration, ExprStmt, Expression, FnDecl, FnItem, ForStmt, IfStmt, Item,
-        LetDecl, Literal, Range, ReturnStmt, Statement, StmtDecl, Unary, WhileStmt,
+        LetDecl, Literal, Logical, Range, ReturnStmt, Statement, StmtDecl, Unary, WhileStmt,
     },
     syntax_error,
     token::{Token, TokenType},
@@ -270,7 +270,7 @@ impl Parser {
         while let TokenType::Or = self.peek().ty {
             let op = self.next_token().clone();
             let right = self.parse_or()?;
-            left = Expression::Binary(Binary::new(Box::new(left), op, Box::new(right)))
+            left = Expression::Logical(Logical::new(Box::new(left), op, Box::new(right)))
         }
 
         Ok(left)
@@ -282,7 +282,7 @@ impl Parser {
         while let TokenType::And = self.peek().ty {
             let op = self.next_token().clone();
             let right = self.parse_equality()?;
-            left = Expression::Binary(Binary::new(Box::new(left), op, Box::new(right)))
+            left = Expression::Logical(Logical::new(Box::new(left), op, Box::new(right)))
         }
 
         Ok(left)
