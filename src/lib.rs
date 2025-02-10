@@ -1,8 +1,8 @@
 pub mod grammar;
 pub mod interpreter;
 pub mod lexer;
-pub mod lox;
 pub mod parser;
+pub mod runtime;
 pub mod token;
 use colored::Colorize;
 

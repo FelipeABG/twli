@@ -1,10 +1,7 @@
 use anyhow::bail;
 
 use crate::{
-    grammar::{
-        Binary, Call, Declaration, ExprStmt, Expression, FnDecl, FnItem, ForStmt, IfStmt, Item,
-        LetDecl, Literal, Logical, Range, ReturnStmt, Statement, StmtDecl, Unary, WhileStmt,
-    },
+    grammar::{Assignment, Binary, Call, Expression, Literal, Logical, Range, Unary},
     syntax_error,
     token::{Token, TokenType},
 };
@@ -24,10 +21,10 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> anyhow::Result<Vec<Item>> {
+    pub fn parse(&mut self) -> anyhow::Result<Vec<Expression>> {
         let mut stmts = Vec::new();
         while !self.finished() {
-            match self.parse_item() {
+            match self.parse_expression() {
                 Ok(s) => stmts.push(s),
                 Err(e) => {
                     self.errors.push_str(&e.to_string());
@@ -43,210 +40,30 @@ impl Parser {
         bail!(self.errors.clone())
     }
 
-    fn parse_item(&mut self) -> anyhow::Result<Item> {
-        if let TokenType::Fn = self.peek().ty {
-            if let Declaration::FnDecl(fun) = self.parse_declaration()? {
-                return Ok(Item::FnItem(FnItem::new(fun)));
-            }
-        }
-
-        bail!(syntax_error(
-            &self.peek().line,
-            "Expected only items (fn, class, ...) in top level"
-        ))
-    }
-    fn parse_declaration(&mut self) -> anyhow::Result<Declaration> {
-        if let TokenType::Let = self.peek().ty {
-            return self.parse_let_declaration();
-        }
-
-        if let TokenType::Fn = self.peek().ty {
-            return self.parse_fn_declaration();
-        }
-
-        Ok(Declaration::StmtDecl(StmtDecl::new(
-            self.parse_statement()?,
-        )))
-    }
-
-    fn parse_fn_declaration(&mut self) -> anyhow::Result<Declaration> {
-        let fn_kw = self.next_token().clone();
-        let ident = self
-            .expect(
-                TokenType::Identifier,
-                "Expected function identifier",
-                fn_kw.line,
-            )?
-            .clone();
-
-        let params = self.parse_fn_params()?;
-        let body = self.parse_statement()?;
-        Ok(Declaration::FnDecl(FnDecl::new(ident, params, body)))
-    }
-
-    fn parse_let_declaration(&mut self) -> anyhow::Result<Declaration> {
-        let let_kw = self.next_token().clone();
-        let ident = self
-            .expect(
-                TokenType::Identifier,
-                &format!(
-                    "Expected identifier after let declaration. Found {:?}",
-                    self.peek().lexeme,
-                ),
-                let_kw.line,
-            )?
-            .clone();
-
-        let mut init = None;
-        if let TokenType::Equal = self.peek().ty {
-            self.next_token();
-            init = Some(self.parse_expression()?);
-        }
-
-        self.expect(
-            TokenType::Semicolon,
-            "Expected ';' after let declaration",
-            let_kw.line,
-        )?;
-        Ok(Declaration::LetDecl(LetDecl::new(ident, init)))
-    }
-
-    fn parse_statement(&mut self) -> anyhow::Result<Statement> {
-        if let TokenType::Return = self.peek().ty {
-            return self.parse_return_statement();
-        }
-
-        if let TokenType::LeftBrace = self.peek().ty {
-            return self.parse_block_statement();
-        }
-
-        if let TokenType::While = self.peek().ty {
-            return self.parse_while_statement();
-        }
-
-        if let TokenType::For = self.peek().ty {
-            return self.parse_for_statement();
-        }
-
-        if let TokenType::If = self.peek().ty {
-            return self.parse_if_statement();
-        }
-
-        self.parse_expression_statement()
-    }
-
-    fn parse_if_statement(&mut self) -> anyhow::Result<Statement> {
-        let _if_kw = self.next_token().clone();
-        let condition = self.parse_expression()?;
-        let if_branch = self.parse_statement()?;
-
-        let mut else_branch = None;
-        if let TokenType::Else = self.peek().ty {
-            let _else_kw = self.next_token();
-            else_branch = Some(Box::new(self.parse_statement()?));
-        }
-
-        Ok(Statement::IfStmt(IfStmt::new(
-            condition,
-            Box::new(if_branch),
-            else_branch,
-        )))
-    }
-
-    fn parse_for_statement(&mut self) -> anyhow::Result<Statement> {
-        let for_kw = self.next_token().clone();
-        let ident = self
-            .expect(TokenType::Identifier, "Expected identifier", for_kw.line)?
-            .clone();
-
-        self.expect(
-            TokenType::In,
-            "Expectected 'in' keyword after variable declaration",
-            for_kw.line,
-        )?;
-
-        let range = self.parse_expression()?;
-        let Expression::Range(_) = range else {
-            bail!(syntax_error(
-                &for_kw.line,
-                &format!("Expected range expression in 'for' declaration",)
-            ))
-        };
-
-        let body = self.parse_statement()?;
-        Ok(Statement::FotStmt(ForStmt::new(
-            ident,
-            range,
-            Box::new(body),
-        )))
-    }
-
-    fn parse_while_statement(&mut self) -> anyhow::Result<Statement> {
-        let _while_kw = self.next_token().clone();
-        let condition = self.parse_expression()?;
-        let body = self.parse_statement()?;
-        Ok(Statement::WhileStmt(WhileStmt::new(
-            condition,
-            Box::new(body),
-        )))
-    }
-
-    fn parse_block_statement(&mut self) -> anyhow::Result<Statement> {
-        let left_brace_kw = self.next_token().clone();
-        let mut block_content = Vec::new();
-
-        loop {
-            if self.finished() {
-                bail!(syntax_error(
-                    &left_brace_kw.line,
-                    "Expected '}' at end of block"
-                ))
-            }
-
-            if matches!(self.peek().ty, TokenType::RightBrace) {
-                break;
-            }
-
-            block_content.push(self.parse_declaration()?);
-        }
-
-        self.expect(
-            TokenType::RightBrace,
-            "Expected '}' at end of block",
-            left_brace_kw.line,
-        )?;
-        Ok(Statement::Block(block_content))
-    }
-
-    fn parse_return_statement(&mut self) -> anyhow::Result<Statement> {
-        let return_kw = self.next_token().clone();
-
-        let mut expr = None;
-        if !matches!(self.peek().ty, TokenType::Semicolon) {
-            expr = Some(self.parse_expression()?);
-        }
-
-        self.expect(
-            TokenType::Semicolon,
-            "Expected ';' after return statement",
-            return_kw.line,
-        )?;
-
-        Ok(Statement::ReturnStmt(ReturnStmt::new(expr)))
-    }
-
-    fn parse_expression_statement(&mut self) -> anyhow::Result<Statement> {
-        let expr = self.parse_expression()?;
-        self.expect(
-            TokenType::Semicolon,
-            "Expected ';' after expression",
-            self.peek_previous().line,
-        )?;
-        Ok(Statement::ExprStmt(ExprStmt::new(expr)))
-    }
-
     fn parse_expression(&mut self) -> anyhow::Result<Expression> {
-        self.parse_range()
+        self.parse_assignment()
+    }
+
+    fn parse_assignment(&mut self) -> anyhow::Result<Expression> {
+        let expr = self.parse_range()?;
+
+        if let TokenType::Equal = self.peek().ty {
+            //consumens the '=' token
+            let equals = self.next_token().clone();
+            let value = self.parse_assignment()?;
+
+            if let Expression::Var(v) = expr {
+                let ident = v;
+                return Ok(Expression::Assignment(Assignment::new(
+                    ident,
+                    Box::new(value),
+                )));
+            }
+
+            bail!(syntax_error(&equals.line, "Invalid assigment target"))
+        }
+
+        Ok(expr)
     }
 
     fn parse_range(&mut self) -> anyhow::Result<Expression> {
@@ -374,7 +191,7 @@ impl Parser {
             TokenType::False => Ok(Expression::Literal(Literal::Boolean(false))),
             TokenType::True => Ok(Expression::Literal(Literal::Boolean(true))),
             TokenType::Null => Ok(Expression::Literal(Literal::Null)),
-            TokenType::Identifier => Ok(Expression::Ident(primary)),
+            TokenType::Identifier => Ok(Expression::Var(primary)),
             TokenType::LeftParen => {
                 let expr = self.parse_expression()?;
                 self.expect(
