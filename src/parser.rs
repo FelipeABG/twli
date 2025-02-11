@@ -5,7 +5,7 @@ use crate::{
         Assignment, Binary, BlockStmt, Call, Declaration, ExprStmt, Expression, LetDecl, Literal,
         Logical, Range, Statement, StmtDecl, Unary,
     },
-    syntax_error,
+    runtime_error, syntax_error,
     token::{Token, TokenType},
 };
 
@@ -99,8 +99,14 @@ impl Parser {
 
         let mut stmts = Vec::new();
 
-        while !matches!(self.peek().ty, TokenType::RightBrace) && !self.finished() {
+        while self.current < self.tokens.len()
+            && !matches!(self.tokens[self.current].ty, TokenType::RightBrace)
+        {
             stmts.push(self.parse_declaration()?);
+        }
+
+        if self.current >= self.tokens.len() {
+            return Err(anyhow::anyhow!(runtime_error(&line, "Unclosed block")));
         }
 
         self.expect(
