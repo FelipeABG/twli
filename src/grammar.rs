@@ -9,9 +9,11 @@ define! {
     struct stmtDecl -> stmt(Statement);
     struct letDecl -> ident(Token), init(Option<Expression>);
 
-    enum statement -> exprStmt(ExprStmt);
+    enum statement -> exprStmt(ExprStmt)
+                        | blockStmt(BlockStmt);
 
     struct exprStmt -> expr(Expression);
+    struct BlockStmt -> stmts(Vec<Declaration>);
 
     enum expression ->  literal(Literal)
                         | var(Token)

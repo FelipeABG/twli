@@ -1,12 +1,12 @@
-use std::cmp::Ordering;
+use std::{cell::RefCell, cmp::Ordering, rc::Rc};
 
-use anyhow::bail;
+use anyhow::{anyhow, bail};
 
 use crate::{
     env::Environment,
     grammar::{
-        Assignment, Binary, Call, Declaration, ExprStmt, Expression, LetDecl, Literal, Logical,
-        Range, Statement, Unary,
+        Assignment, Binary, BlockStmt, Call, Declaration, ExprStmt, Expression, LetDecl, Literal,
+        Logical, Range, Statement, Unary,
     },
     runtime::Object,
     runtime_error,
@@ -14,13 +14,16 @@ use crate::{
 };
 
 pub struct Interpreter {
-    global: Environment,
+    global: Rc<RefCell<Environment>>,
+    current: Rc<RefCell<Environment>>,
 }
 
 impl Interpreter {
     pub fn new() -> Self {
+        let global = Rc::new(RefCell::new(Environment::new(None)));
         Self {
-            global: Environment::new(),
+            global: Rc::clone(&global),
+            current: Rc::clone(&global),
         }
     }
 
@@ -43,10 +46,9 @@ impl Interpreter {
         match &let_decl.init {
             Some(i) => {
                 let init = self.eval_expression(&i)?;
-                Ok(self.global.define(let_decl.ident.lexeme.clone(), init))
+                Ok(RefCell::borrow_mut(&self.global).define(let_decl.ident.lexeme.clone(), init))
             }
-            None => Ok(self
-                .global
+            None => Ok(RefCell::borrow_mut(&self.global)
                 .define(let_decl.ident.lexeme.clone(), Object::Null)),
         }
     }
@@ -54,7 +56,22 @@ impl Interpreter {
     fn exec_statement(&mut self, stmt: &Statement) -> anyhow::Result<()> {
         match stmt {
             Statement::ExprStmt(expr_stmt) => self.exec_expression_statement(expr_stmt),
+            Statement::BlockStmt(block_stmt) => self.exec_block_statement(block_stmt),
         }
+    }
+
+    fn exec_block_statement(&mut self, block_stmt: &BlockStmt) -> anyhow::Result<()> {
+        let previous = Rc::clone(&self.current);
+        self.current = Rc::new(RefCell::new(Environment::new(Some(Rc::clone(
+            &self.current,
+        )))));
+
+        for decl in block_stmt.stmts.iter() {
+            self.register_declaration(decl)?
+        }
+
+        self.current = previous;
+        Ok(())
     }
 
     fn exec_expression_statement(&mut self, expr_stmt: &ExprStmt) -> anyhow::Result<()> {
@@ -65,7 +82,7 @@ impl Interpreter {
     fn eval_expression(&mut self, expr: &Expression) -> anyhow::Result<Object> {
         match expr {
             Expression::Literal(literal) => self.eval_literal(literal),
-            Expression::Var(token) => todo!(),
+            Expression::Var(token) => RefCell::borrow_mut(&self.current).get(&token.lexeme),
             Expression::Call(call) => self.eval_call(call),
             Expression::Unary(unary) => self.eval_unary(unary),
             Expression::Binary(binary) => self.eval_binary(binary),
@@ -77,7 +94,12 @@ impl Interpreter {
     }
 
     fn eval_assignment(&mut self, assignment: &Assignment) -> anyhow::Result<Object> {
-        todo!()
+        let value = self.eval_expression(&assignment.expr)?;
+        let line = &assignment.ident.line;
+        RefCell::borrow_mut(&self.global)
+            .assign(&assignment.ident.lexeme, value.clone())
+            .map_err(|e| anyhow!(runtime_error(line, &e.to_string())))?;
+        Ok(value)
     }
 
     fn eval_range(&mut self, range: &Range) -> anyhow::Result<Object> {

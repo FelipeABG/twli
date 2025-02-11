@@ -2,8 +2,8 @@ use anyhow::bail;
 
 use crate::{
     grammar::{
-        Assignment, Binary, Call, Declaration, ExprStmt, Expression, LetDecl, Literal, Logical,
-        Range, Statement, StmtDecl, Unary,
+        Assignment, Binary, BlockStmt, Call, Declaration, ExprStmt, Expression, LetDecl, Literal,
+        Logical, Range, Statement, StmtDecl, Unary,
     },
     syntax_error,
     token::{Token, TokenType},
@@ -80,6 +80,10 @@ impl Parser {
     }
 
     fn parse_statment(&mut self) -> anyhow::Result<Statement> {
+        if let TokenType::LeftBrace = self.peek().ty {
+            return self.parse_block_statement();
+        }
+
         let expr = self.parse_expression()?;
         self.expect(
             TokenType::Semicolon,
@@ -87,6 +91,25 @@ impl Parser {
             self.peek_previous().line,
         )?;
         Ok(Statement::ExprStmt(ExprStmt::new(expr)))
+    }
+
+    fn parse_block_statement(&mut self) -> anyhow::Result<Statement> {
+        let left_brace_token = self.next_token();
+        let line = left_brace_token.line;
+
+        let mut stmts = Vec::new();
+
+        while !matches!(self.peek().ty, TokenType::RightBrace) && !self.finished() {
+            stmts.push(self.parse_declaration()?);
+        }
+
+        self.expect(
+            TokenType::RightBrace,
+            "Expected '}' at the end of scope",
+            line,
+        )?;
+
+        Ok(Statement::BlockStmt(BlockStmt::new(stmts)))
     }
 
     fn parse_expression(&mut self) -> anyhow::Result<Expression> {
