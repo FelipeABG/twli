@@ -3,24 +3,62 @@ use std::cmp::Ordering;
 use anyhow::bail;
 
 use crate::{
-    grammar::{Assignment, Binary, Call, Expression, Literal, Logical, Range, Unary},
+    env::Environment,
+    grammar::{
+        Assignment, Binary, Call, Declaration, ExprStmt, Expression, LetDecl, Literal, Logical,
+        Range, Statement, Unary,
+    },
     runtime::Object,
     runtime_error,
     token::TokenType,
 };
 
-pub struct Interpreter {}
+pub struct Interpreter {
+    global: Environment,
+}
 
 impl Interpreter {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            global: Environment::new(),
+        }
     }
 
-    pub fn interpret(&mut self, ast: Vec<Expression>) -> anyhow::Result<()> {
+    pub fn interpret(&mut self, ast: Vec<Declaration>) -> anyhow::Result<()> {
         for stmt in ast.iter() {
-            println!("{}", self.eval_expression(stmt)?)
+            self.register_declaration(stmt)?
         }
 
+        Ok(())
+    }
+
+    fn register_declaration(&mut self, decl: &Declaration) -> anyhow::Result<()> {
+        match decl {
+            Declaration::StmtDecl(stmt_decl) => self.exec_statement(&stmt_decl.stmt),
+            Declaration::LetDecl(let_decl) => self.register_let_declaration(let_decl),
+        }
+    }
+
+    fn register_let_declaration(&mut self, let_decl: &LetDecl) -> anyhow::Result<()> {
+        match &let_decl.init {
+            Some(i) => {
+                let init = self.eval_expression(&i)?;
+                Ok(self.global.define(let_decl.ident.lexeme.clone(), init))
+            }
+            None => Ok(self
+                .global
+                .define(let_decl.ident.lexeme.clone(), Object::Null)),
+        }
+    }
+
+    fn exec_statement(&mut self, stmt: &Statement) -> anyhow::Result<()> {
+        match stmt {
+            Statement::ExprStmt(expr_stmt) => self.exec_expression_statement(expr_stmt),
+        }
+    }
+
+    fn exec_expression_statement(&mut self, expr_stmt: &ExprStmt) -> anyhow::Result<()> {
+        self.eval_expression(&expr_stmt.expr)?;
         Ok(())
     }
 

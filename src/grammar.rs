@@ -3,6 +3,16 @@ use define_macro::define;
 use crate::token::Token;
 
 define! {
+    enum declaration -> stmtDecl(StmtDecl)
+                        | letDecl(LetDecl);
+
+    struct stmtDecl -> stmt(Statement);
+    struct letDecl -> ident(Token), init(Option<Expression>);
+
+    enum statement -> exprStmt(ExprStmt);
+
+    struct exprStmt -> expr(Expression);
+
     enum expression ->  literal(Literal)
                         | var(Token)
                         | call(Call)

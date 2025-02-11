@@ -1,3 +1,4 @@
+pub mod env;
 pub mod grammar;
 pub mod interpreter;
 pub mod lexer;

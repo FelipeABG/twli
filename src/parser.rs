@@ -1,7 +1,10 @@
 use anyhow::bail;
 
 use crate::{
-    grammar::{Assignment, Binary, Call, Expression, Literal, Logical, Range, Unary},
+    grammar::{
+        Assignment, Binary, Call, Declaration, ExprStmt, Expression, LetDecl, Literal, Logical,
+        Range, Statement, StmtDecl, Unary,
+    },
     syntax_error,
     token::{Token, TokenType},
 };
@@ -21,11 +24,11 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> anyhow::Result<Vec<Expression>> {
-        let mut stmts = Vec::new();
+    pub fn parse(&mut self) -> anyhow::Result<Vec<Declaration>> {
+        let mut declarations = Vec::new();
         while !self.finished() {
-            match self.parse_expression() {
-                Ok(s) => stmts.push(s),
+            match self.parse_declaration() {
+                Ok(s) => declarations.push(s),
                 Err(e) => {
                     self.errors.push_str(&e.to_string());
                     self.synchronize()
@@ -34,10 +37,56 @@ impl Parser {
         }
 
         if self.errors.is_empty() {
-            return Ok(stmts);
+            return Ok(declarations);
         }
 
         bail!(self.errors.clone())
+    }
+
+    fn parse_declaration(&mut self) -> anyhow::Result<Declaration> {
+        if let TokenType::Let = self.peek().ty {
+            return self.parse_let_declaration();
+        }
+
+        let stmt = self.parse_statment()?;
+        Ok(Declaration::StmtDecl(StmtDecl::new(stmt)))
+    }
+
+    fn parse_let_declaration(&mut self) -> anyhow::Result<Declaration> {
+        let let_token = self.next_token();
+        let line = let_token.line;
+
+        let ident = self
+            .expect(
+                TokenType::Identifier,
+                "expected identifier after let declaration",
+                line,
+            )?
+            .clone();
+
+        let mut init = None;
+        if let TokenType::Equal = self.peek().ty {
+            self.next_token();
+            init = Some(self.parse_expression()?);
+        }
+
+        self.expect(
+            TokenType::Semicolon,
+            "Expect ';' after variable declaration",
+            line,
+        )?;
+
+        Ok(Declaration::LetDecl(LetDecl::new(ident, init)))
+    }
+
+    fn parse_statment(&mut self) -> anyhow::Result<Statement> {
+        let expr = self.parse_expression()?;
+        self.expect(
+            TokenType::Semicolon,
+            "Expected ';' after expression",
+            self.peek_previous().line,
+        )?;
+        Ok(Statement::ExprStmt(ExprStmt::new(expr)))
     }
 
     fn parse_expression(&mut self) -> anyhow::Result<Expression> {

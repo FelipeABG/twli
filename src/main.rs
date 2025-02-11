@@ -8,8 +8,8 @@ fn main() -> anyhow::Result<()> {
     match lexer.tokenize() {
         Ok(tokens) => {
             let mut parser = Parser::new(tokens);
-            let expr = parser.parse()?;
-            interp.interpret(expr)?
+            let declarations = parser.parse()?;
+            interp.interpret(declarations)?
         }
         Err(e) => {
             println!("{e}");
