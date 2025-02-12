@@ -92,6 +92,10 @@ impl Parser {
             return self.parse_while_statement();
         }
 
+        if let TokenType::For = self.peek().ty {
+            return self.parse_for_statement();
+        }
+
         let expr = self.parse_expression()?;
         self.expect(
             TokenType::Semicolon,
@@ -99,6 +103,92 @@ impl Parser {
             self.peek_previous().line,
         )?;
         Ok(Statement::ExprStmt(ExprStmt::new(expr)))
+    }
+
+    fn parse_for_statement(&mut self) -> anyhow::Result<Statement> {
+        let for_token = self.next_token();
+        let line = for_token.line;
+
+        let variable = self
+            .expect(
+                TokenType::Identifier,
+                "Expected identifier after 'for' keyword",
+                line,
+            )?
+            .clone();
+        self.expect(
+            TokenType::In,
+            "Expected 'in' keyword after identifier in for loop declaration",
+            line,
+        )?;
+
+        let range = self.parse_range()?;
+        let body = self.parse_block_statement()?;
+
+        // Extract start and end values from the range expression.
+        let (start, end) = match range {
+            Expression::Range(r) => match (*r.left, *r.right) {
+                (
+                    Expression::Literal(Literal::Number(start)),
+                    Expression::Literal(Literal::Number(end)),
+                ) => (start, end),
+                _ => bail!(syntax_error(
+                    &line,
+                    "Expected range operands to evaluate to a number"
+                )),
+            },
+            _ => bail!(syntax_error(
+                &line,
+                "Expected range expression (a..b) in for loop declaration"
+            )),
+        };
+
+        // Create the loop variable declaration: let variable = start;
+        let var_decl = Declaration::LetDecl(LetDecl::new(
+            variable.clone(),
+            Some(Expression::Literal(Literal::Number(start))),
+        ));
+
+        // Build the loop condition: variable < end.
+        let condition = Expression::Binary(Binary::new(
+            Box::new(Expression::Var(variable.clone())),
+            Token::new("<".to_string(), TokenType::Less, line),
+            Box::new(Expression::Literal(Literal::Number(end))),
+        ));
+
+        // Build the increment statement: variable = variable + 1.
+        let increment_expr = Expression::Binary(Binary::new(
+            Box::new(Expression::Var(variable.clone())),
+            Token::new("+".to_string(), TokenType::Plus, line),
+            Box::new(Expression::Literal(Literal::Number(1.0))),
+        ));
+        let assign =
+            Expression::Assignment(Assignment::new(variable.clone(), Box::new(increment_expr)));
+        let iteration = Statement::ExprStmt(ExprStmt::new(assign));
+
+        // Ensure the loop body is a block and append the iteration statement.
+        let while_body = match body {
+            Statement::BlockStmt(mut block) => {
+                block
+                    .stmts
+                    .push(Declaration::StmtDecl(StmtDecl::new(iteration)));
+                Statement::BlockStmt(block)
+            }
+            _ => bail!(syntax_error(
+                &line,
+                "Expected block after for loop declaration"
+            )),
+        };
+
+        // Construct the while loop using the condition and modified body.
+        let while_stmt = Declaration::StmtDecl(StmtDecl::new(Statement::WhileStmt(
+            WhileStmt::new(condition, Box::new(while_body)),
+        )));
+
+        // Return the desugared for-loop as a block containing the variable declaration and while loop.
+        Ok(Statement::BlockStmt(BlockStmt::new(vec![
+            var_decl, while_stmt,
+        ])))
     }
 
     fn parse_while_statement(&mut self) -> anyhow::Result<Statement> {
