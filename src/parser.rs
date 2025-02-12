@@ -2,8 +2,8 @@ use anyhow::bail;
 
 use crate::{
     grammar::{
-        Assignment, Binary, BlockStmt, Call, Declaration, ExprStmt, Expression, LetDecl, Literal,
-        Logical, Range, Statement, StmtDecl, Unary,
+        Assignment, Binary, BlockStmt, Call, Declaration, ExprStmt, Expression, IfStmt, LetDecl,
+        Literal, Logical, Range, Statement, StmtDecl, Unary,
     },
     runtime_error, syntax_error,
     token::{Token, TokenType},
@@ -84,6 +84,10 @@ impl Parser {
             return self.parse_block_statement();
         }
 
+        if let TokenType::If = self.peek().ty {
+            return self.parse_if_statement();
+        }
+
         let expr = self.parse_expression()?;
         self.expect(
             TokenType::Semicolon,
@@ -91,6 +95,25 @@ impl Parser {
             self.peek_previous().line,
         )?;
         Ok(Statement::ExprStmt(ExprStmt::new(expr)))
+    }
+
+    fn parse_if_statement(&mut self) -> anyhow::Result<Statement> {
+        let _if_token = self.next_token();
+
+        let condition = self.parse_expression()?;
+        let if_branch = Box::new(self.parse_statment()?);
+
+        let mut else_branch = None;
+        if let TokenType::Else = self.peek().ty {
+            self.next_token();
+            else_branch = Some(Box::new(self.parse_statment()?));
+        }
+
+        Ok(Statement::IfStmt(IfStmt::new(
+            condition,
+            if_branch,
+            else_branch,
+        )))
     }
 
     fn parse_block_statement(&mut self) -> anyhow::Result<Statement> {

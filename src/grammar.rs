@@ -10,8 +10,10 @@ define! {
     struct letDecl -> ident(Token), init(Option<Expression>);
 
     enum statement -> exprStmt(ExprStmt)
-                        | blockStmt(BlockStmt);
+                        | blockStmt(BlockStmt)
+                        | ifStmt(IfStmt);
 
+    struct ifStmt -> condition(Expression), if_branch(Box<Statement>), else_branch(Option<Box<Statement>>);
     struct exprStmt -> expr(Expression);
     struct BlockStmt -> stmts(Vec<Declaration>);
 

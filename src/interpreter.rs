@@ -5,8 +5,8 @@ use anyhow::{anyhow, bail};
 use crate::{
     env::Environment,
     grammar::{
-        Assignment, Binary, BlockStmt, Call, Declaration, ExprStmt, Expression, LetDecl, Literal,
-        Logical, Range, Statement, Unary,
+        Assignment, Binary, BlockStmt, Call, Declaration, ExprStmt, Expression, IfStmt, LetDecl,
+        Literal, Logical, Range, Statement, Unary,
     },
     runtime::Object,
     runtime_error,
@@ -57,7 +57,21 @@ impl Interpreter {
         match stmt {
             Statement::ExprStmt(expr_stmt) => self.exec_expression_statement(expr_stmt),
             Statement::BlockStmt(block_stmt) => self.exec_block_statement(block_stmt),
+            Statement::IfStmt(if_stmt) => self.exec_if_statement(if_stmt),
         }
+    }
+
+    fn exec_if_statement(&mut self, if_stmt: &IfStmt) -> anyhow::Result<()> {
+        let condition = self.eval_expression(&if_stmt.condition)?;
+
+        if condition.thrutiness() {
+            self.exec_statement(&if_stmt.if_branch)?;
+        } else {
+            if let Some(else_branch) = &if_stmt.else_branch {
+                self.exec_statement(&else_branch)?;
+            }
+        }
+        Ok(())
     }
 
     fn exec_block_statement(&mut self, block_stmt: &BlockStmt) -> anyhow::Result<()> {

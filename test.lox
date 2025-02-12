@@ -1,3 +1,6 @@
-{
-  let a = 10;
+let a = true;
+if a {
+  let b = 20;
+} else {
+  let b = 30;
 }
