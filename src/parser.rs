@@ -3,7 +3,7 @@ use anyhow::bail;
 use crate::{
     grammar::{
         Assignment, Binary, BlockStmt, Call, Declaration, ExprStmt, Expression, IfStmt, LetDecl,
-        Literal, Logical, Range, Statement, StmtDecl, Unary,
+        Literal, Logical, Range, Statement, StmtDecl, Unary, WhileStmt,
     },
     runtime_error, syntax_error,
     token::{Token, TokenType},
@@ -88,6 +88,10 @@ impl Parser {
             return self.parse_if_statement();
         }
 
+        if let TokenType::While = self.peek().ty {
+            return self.parse_while_statement();
+        }
+
         let expr = self.parse_expression()?;
         self.expect(
             TokenType::Semicolon,
@@ -97,16 +101,23 @@ impl Parser {
         Ok(Statement::ExprStmt(ExprStmt::new(expr)))
     }
 
+    fn parse_while_statement(&mut self) -> anyhow::Result<Statement> {
+        let _while_token = self.next_token();
+        let condition = self.parse_expression()?;
+        let body = Box::new(self.parse_block_statement()?);
+        Ok(Statement::WhileStmt(WhileStmt::new(condition, body)))
+    }
+
     fn parse_if_statement(&mut self) -> anyhow::Result<Statement> {
         let _if_token = self.next_token();
 
         let condition = self.parse_expression()?;
-        let if_branch = Box::new(self.parse_statment()?);
+        let if_branch = Box::new(self.parse_block_statement()?);
 
         let mut else_branch = None;
         if let TokenType::Else = self.peek().ty {
             self.next_token();
-            else_branch = Some(Box::new(self.parse_statment()?));
+            else_branch = Some(Box::new(self.parse_block_statement()?));
         }
 
         Ok(Statement::IfStmt(IfStmt::new(
@@ -117,7 +128,11 @@ impl Parser {
     }
 
     fn parse_block_statement(&mut self) -> anyhow::Result<Statement> {
-        let left_brace_token = self.next_token();
+        let left_brace_token = self.expect(
+            TokenType::LeftBrace,
+            "Expected '{' at begining of block",
+            self.peek_previous().line,
+        )?;
         let line = left_brace_token.line;
 
         let mut stmts = Vec::new();

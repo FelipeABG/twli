@@ -11,8 +11,10 @@ define! {
 
     enum statement -> exprStmt(ExprStmt)
                         | blockStmt(BlockStmt)
-                        | ifStmt(IfStmt);
+                        | ifStmt(IfStmt)
+                        | whileStmt(WhileStmt);
 
+    struct whileStmt -> condition(Expression), body(Box<Statement>);
     struct ifStmt -> condition(Expression), if_branch(Box<Statement>), else_branch(Option<Box<Statement>>);
     struct exprStmt -> expr(Expression);
     struct BlockStmt -> stmts(Vec<Declaration>);

@@ -6,7 +6,7 @@ use crate::{
     env::Environment,
     grammar::{
         Assignment, Binary, BlockStmt, Call, Declaration, ExprStmt, Expression, IfStmt, LetDecl,
-        Literal, Logical, Range, Statement, Unary,
+        Literal, Logical, Range, Statement, Unary, WhileStmt,
     },
     runtime::Object,
     runtime_error,
@@ -58,7 +58,18 @@ impl Interpreter {
             Statement::ExprStmt(expr_stmt) => self.exec_expression_statement(expr_stmt),
             Statement::BlockStmt(block_stmt) => self.exec_block_statement(block_stmt),
             Statement::IfStmt(if_stmt) => self.exec_if_statement(if_stmt),
+            Statement::WhileStmt(while_stmt) => self.exec_while_statement(while_stmt),
         }
+    }
+
+    fn exec_while_statement(&mut self, while_stmt: &WhileStmt) -> anyhow::Result<()> {
+        let condition = self.eval_expression(&while_stmt.condition)?;
+
+        while condition.thrutiness() {
+            self.exec_statement(&while_stmt.body)?;
+        }
+
+        Ok(())
     }
 
     fn exec_if_statement(&mut self, if_stmt: &IfStmt) -> anyhow::Result<()> {
@@ -121,7 +132,19 @@ impl Interpreter {
     }
 
     fn eval_logical(&mut self, logical: &Logical) -> anyhow::Result<Object> {
-        todo!()
+        let left = self.eval_expression(&logical.left)?;
+
+        if let TokenType::Or = logical.operator.ty {
+            if left.thrutiness() {
+                return Ok(left);
+            }
+        } else {
+            if !left.thrutiness() {
+                return Ok(left);
+            }
+        }
+
+        Ok(self.eval_expression(&logical.right)?)
     }
 
     fn eval_binary(&mut self, binary: &Binary) -> anyhow::Result<Object> {

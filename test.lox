@@ -1,4 +1,5 @@
 let a = true;
+
 if a {
   let b = 20;
 } else {
