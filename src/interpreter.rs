@@ -63,9 +63,7 @@ impl Interpreter {
     }
 
     fn exec_while_statement(&mut self, while_stmt: &WhileStmt) -> anyhow::Result<()> {
-        let condition = self.eval_expression(&while_stmt.condition)?;
-
-        while condition.thrutiness() {
+        while self.eval_expression(&while_stmt.condition)?.thrutiness() {
             self.exec_statement(&while_stmt.body)?;
         }
 

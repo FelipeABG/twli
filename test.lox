@@ -1,7 +1,5 @@
-let a = true;
+let a = 0;
 
-if a {
-  let b = 20;
-} else {
-  let b = 30;
+while a <= 1000 {
+  a = a + 1;
 }
