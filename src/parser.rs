@@ -1,11 +1,11 @@
 use anyhow::bail;
 
 use crate::{
+    error::syntax_error,
     grammar::{
         Assignment, Binary, BlockStmt, Call, Declaration, ExprStmt, Expression, FnDecl, IfStmt,
-        LetDecl, Literal, Logical, Range, Statement, StmtDecl, Unary, WhileStmt,
+        LetDecl, Literal, Logical, Range, ReturnStmt, Statement, StmtDecl, Unary, WhileStmt,
     },
-    runtime_error, syntax_error,
     token::{Token, TokenType},
 };
 
@@ -116,6 +116,10 @@ impl Parser {
             return self.parse_for_statement();
         }
 
+        if let TokenType::Return = self.peek().ty {
+            return self.parse_return_statement();
+        }
+
         let expr = self.parse_expression()?;
         self.expect(
             TokenType::Semicolon,
@@ -123,6 +127,23 @@ impl Parser {
             self.peek_previous().line,
         )?;
         Ok(Statement::ExprStmt(ExprStmt::new(expr)))
+    }
+
+    fn parse_return_statement(&mut self) -> anyhow::Result<Statement> {
+        let return_token = self.next_token().clone();
+
+        let mut expr = None;
+        if !matches!(self.peek().ty, TokenType::Semicolon) {
+            expr = Some(self.parse_expression()?);
+        }
+
+        self.expect(
+            TokenType::Semicolon,
+            "Expected ';' after return statement",
+            return_token.line,
+        )?;
+
+        Ok(Statement::ReturnStmt(ReturnStmt::new(return_token, expr)))
     }
 
     fn parse_for_statement(&mut self) -> anyhow::Result<Statement> {
@@ -254,7 +275,7 @@ impl Parser {
         }
 
         if self.current >= self.tokens.len() {
-            return Err(anyhow::anyhow!(runtime_error(&line, "Unclosed block")));
+            return Err(anyhow::anyhow!(syntax_error(&line, "Unclosed block")));
         }
 
         self.expect(

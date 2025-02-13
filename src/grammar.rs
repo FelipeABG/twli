@@ -14,8 +14,10 @@ define! {
     enum statement -> exprStmt(ExprStmt)
                         | blockStmt(BlockStmt)
                         | ifStmt(IfStmt)
-                        | whileStmt(WhileStmt);
+                        | whileStmt(WhileStmt)
+                        | returnStmt(ReturnStmt);
 
+    struct ReturnStmt -> return_token(Token), expr(Option<Expression>);
     struct whileStmt -> condition(Expression), body(Box<Statement>);
     struct ifStmt -> condition(Expression), if_branch(Box<Statement>), else_branch(Option<Box<Statement>>);
     struct exprStmt -> expr(Expression);

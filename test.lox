@@ -1,6 +1,5 @@
-fn boo(a,b) {
-  println(a);
-  println(b);
+fn boo() {
+  return 10;
 }
 
-println(boo);
+println(boo());

@@ -1,5 +1,5 @@
 use crate::{
-    syntax_error,
+    error::syntax_error,
     token::{Token, TokenType, KEYWORDS},
 };
 use anyhow::bail;

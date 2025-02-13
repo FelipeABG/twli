@@ -1,8 +1,8 @@
 use crate::{
     env::Environment,
+    error::{runtime_error, Return},
     grammar::{FnDecl, Statement},
     interpreter::Interpreter,
-    runtime_error,
 };
 use anyhow::bail;
 use core::f64;
@@ -17,14 +17,14 @@ pub trait Callable {
     fn call(&mut self, interp: &mut Interpreter, args: Vec<Object>) -> anyhow::Result<Object>;
     fn arity(&self) -> usize;
     fn to_string(&self) -> String;
-    fn clone_box(&self) -> Box<dyn Callable>;
+    fn clone_box(&self) -> Box<dyn Callable + Send + Sync + 'static>;
 }
 
 pub enum Object {
     Str(String),
     Boolean(bool),
     Number(f64),
-    Callable(Box<dyn Callable>),
+    Callable(Box<dyn Callable + Send + Sync + 'static>),
     Null,
 }
 
@@ -46,7 +46,12 @@ impl Callable for Function {
         }
 
         if let Statement::BlockStmt(b) = &self.declaration.body {
-            interp.exec_block_statement(&b, env)?;
+            if let Err(e) = interp.exec_block_statement(&b, env) {
+                return match e.downcast::<Return>()?.value {
+                    Some(o) => Ok(o),
+                    None => Ok(Object::Null),
+                };
+            }
         }
 
         Ok(Object::Null)
@@ -60,7 +65,7 @@ impl Callable for Function {
         format!("<user fn {}>", self.declaration.ident.lexeme)
     }
 
-    fn clone_box(&self) -> Box<dyn Callable> {
+    fn clone_box(&self) -> Box<dyn Callable + Send + Sync + 'static> {
         Box::new(Function {
             declaration: self.declaration.clone(),
         })
@@ -193,7 +198,7 @@ impl PartialEq for Object {
     }
 }
 
-impl Clone for Box<dyn Callable> {
+impl Clone for Box<dyn Callable + Send + Sync + 'static> {
     fn clone(&self) -> Self {
         self.clone_box()
     }

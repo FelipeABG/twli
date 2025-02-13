@@ -4,12 +4,12 @@ use anyhow::{anyhow, bail};
 
 use crate::{
     env::Environment,
+    error::{runtime_error, Return},
     grammar::{
         Assignment, Binary, BlockStmt, Call, Declaration, ExprStmt, Expression, FnDecl, IfStmt,
-        LetDecl, Literal, Logical, Range, Statement, Unary, WhileStmt,
+        LetDecl, Literal, Logical, Range, ReturnStmt, Statement, Unary, WhileStmt,
     },
     runtime::{Function, Object},
-    runtime_error,
     std::Println,
     token::TokenType,
 };
@@ -79,7 +79,17 @@ impl Interpreter {
             ),
             Statement::IfStmt(if_stmt) => self.exec_if_statement(if_stmt),
             Statement::WhileStmt(while_stmt) => self.exec_while_statement(while_stmt),
+            Statement::ReturnStmt(return_stmt) => self.exec_return_statement(return_stmt),
         }
+    }
+
+    fn exec_return_statement(&mut self, return_stmt: &ReturnStmt) -> anyhow::Result<()> {
+        let mut value = None;
+        if let Some(e) = &return_stmt.expr {
+            value = Some(self.eval_expression(&e)?);
+        }
+
+        Err(anyhow::Error::new(Return::new(value)))
     }
 
     fn exec_while_statement(&mut self, while_stmt: &WhileStmt) -> anyhow::Result<()> {

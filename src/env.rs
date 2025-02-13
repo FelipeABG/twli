@@ -22,7 +22,7 @@ impl Environment {
         self.bindings.insert(key, value);
     }
 
-    pub fn define_callable(&mut self, key: String, value: impl Callable + 'static) {
+    pub fn define_callable(&mut self, key: String, value: impl Callable + Send + Sync + 'static) {
         self.bindings.insert(key, Object::Callable(Box::new(value)));
     }
 

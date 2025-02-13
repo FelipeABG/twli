@@ -19,7 +19,7 @@ impl Callable for Println {
         "<std fn println>".to_string()
     }
 
-    fn clone_box(&self) -> Box<dyn Callable> {
+    fn clone_box(&self) -> Box<dyn Callable + Send + Sync + 'static> {
         Box::new(Println {})
     }
 }
