@@ -2,8 +2,8 @@ use anyhow::bail;
 
 use crate::{
     grammar::{
-        Assignment, Binary, BlockStmt, Call, Declaration, ExprStmt, Expression, IfStmt, LetDecl,
-        Literal, Logical, Range, Statement, StmtDecl, Unary, WhileStmt,
+        Assignment, Binary, BlockStmt, Call, Declaration, ExprStmt, Expression, FnDecl, IfStmt,
+        LetDecl, Literal, Logical, Range, Statement, StmtDecl, Unary, WhileStmt,
     },
     runtime_error, syntax_error,
     token::{Token, TokenType},
@@ -48,6 +48,10 @@ impl Parser {
             return self.parse_let_declaration();
         }
 
+        if let TokenType::Fn = self.peek().ty {
+            return self.parse_fn_statement();
+        }
+
         let stmt = self.parse_statment()?;
         Ok(Declaration::StmtDecl(StmtDecl::new(stmt)))
     }
@@ -77,6 +81,22 @@ impl Parser {
         )?;
 
         Ok(Declaration::LetDecl(LetDecl::new(ident, init)))
+    }
+
+    fn parse_fn_statement(&mut self) -> anyhow::Result<Declaration> {
+        let fn_token = self.next_token().clone();
+
+        let ident = self
+            .expect(
+                TokenType::Identifier,
+                "Expected function identifier",
+                fn_token.line,
+            )?
+            .clone();
+
+        let params = self.parse_fn_params()?;
+        let body = self.parse_block_statement()?;
+        Ok(Declaration::FnDecl(FnDecl::new(ident, params, body)))
     }
 
     fn parse_statment(&mut self) -> anyhow::Result<Statement> {

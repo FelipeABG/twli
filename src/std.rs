@@ -4,7 +4,7 @@ pub struct Println {}
 impl Callable for Println {
     fn call(
         &mut self,
-        interp: &mut crate::interpreter::Interpreter,
+        _: &mut crate::interpreter::Interpreter,
         args: Vec<crate::runtime::Object>,
     ) -> anyhow::Result<crate::runtime::Object> {
         println!("{}", args[0]);

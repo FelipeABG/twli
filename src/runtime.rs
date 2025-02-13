@@ -1,12 +1,24 @@
+use crate::{
+    env::Environment,
+    grammar::{FnDecl, Statement},
+    interpreter::Interpreter,
+    runtime_error,
+};
+use anyhow::bail;
 use core::f64;
 use std::{
+    cell::RefCell,
     fmt::{Debug, Display},
     ops,
+    rc::Rc,
 };
 
-use anyhow::bail;
-
-use crate::{interpreter::Interpreter, runtime_error};
+pub trait Callable {
+    fn call(&mut self, interp: &mut Interpreter, args: Vec<Object>) -> anyhow::Result<Object>;
+    fn arity(&self) -> usize;
+    fn to_string(&self) -> String;
+    fn clone_box(&self) -> Box<dyn Callable>;
+}
 
 pub enum Object {
     Str(String),
@@ -16,11 +28,43 @@ pub enum Object {
     Null,
 }
 
-pub trait Callable {
-    fn call(&mut self, interp: &mut Interpreter, args: Vec<Object>) -> anyhow::Result<Object>;
-    fn arity(&self) -> usize;
-    fn to_string(&self) -> String;
-    fn clone_box(&self) -> Box<dyn Callable>;
+//user function definition
+pub struct Function {
+    pub declaration: FnDecl,
+}
+
+impl Callable for Function {
+    fn call(&mut self, interp: &mut Interpreter, args: Vec<Object>) -> anyhow::Result<Object> {
+        let env = Rc::new(RefCell::new(Environment::new(Some(Rc::clone(
+            &interp.global,
+        )))));
+
+        for idx in 0..self.declaration.params.len() {
+            let param = self.declaration.params[idx].lexeme.clone();
+            let value = args[idx].clone();
+            RefCell::borrow_mut(&env).define(param, value);
+        }
+
+        if let Statement::BlockStmt(b) = &self.declaration.body {
+            interp.exec_block_statement(&b, env)?;
+        }
+
+        Ok(Object::Null)
+    }
+
+    fn arity(&self) -> usize {
+        self.declaration.params.len()
+    }
+
+    fn to_string(&self) -> String {
+        format!("<user fn {}>", self.declaration.ident.lexeme)
+    }
+
+    fn clone_box(&self) -> Box<dyn Callable> {
+        Box::new(Function {
+            declaration: self.declaration.clone(),
+        })
+    }
 }
 
 impl Object {

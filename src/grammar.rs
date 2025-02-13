@@ -4,8 +4,10 @@ use crate::token::Token;
 
 define! {
     enum declaration -> stmtDecl(StmtDecl)
-                        | letDecl(LetDecl);
+                        | letDecl(LetDecl)
+                        | fnDecl(FnDecl);
 
+    struct fnDecl -> ident(Token), params(Vec<Token>), body(Statement);
     struct stmtDecl -> stmt(Statement);
     struct letDecl -> ident(Token), init(Option<Expression>);
 

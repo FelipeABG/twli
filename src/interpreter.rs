@@ -5,18 +5,18 @@ use anyhow::{anyhow, bail};
 use crate::{
     env::Environment,
     grammar::{
-        Assignment, Binary, BlockStmt, Call, Declaration, ExprStmt, Expression, IfStmt, LetDecl,
-        Literal, Logical, Range, Statement, Unary, WhileStmt,
+        Assignment, Binary, BlockStmt, Call, Declaration, ExprStmt, Expression, FnDecl, IfStmt,
+        LetDecl, Literal, Logical, Range, Statement, Unary, WhileStmt,
     },
-    runtime::Object,
+    runtime::{Function, Object},
     runtime_error,
     std::Println,
     token::TokenType,
 };
 
 pub struct Interpreter {
-    global: Rc<RefCell<Environment>>,
-    current: Rc<RefCell<Environment>>,
+    pub global: Rc<RefCell<Environment>>,
+    pub current: Rc<RefCell<Environment>>,
 }
 
 impl Interpreter {
@@ -42,7 +42,19 @@ impl Interpreter {
         match decl {
             Declaration::StmtDecl(stmt_decl) => self.exec_statement(&stmt_decl.stmt),
             Declaration::LetDecl(let_decl) => self.register_let_declaration(let_decl),
+            Declaration::FnDecl(fn_decl) => self.register_function_declaration(fn_decl),
         }
+    }
+
+    fn register_function_declaration(&mut self, fn_decl: &FnDecl) -> anyhow::Result<()> {
+        RefCell::borrow_mut(&mut self.current).define_callable(
+            fn_decl.ident.lexeme.clone(),
+            Function {
+                declaration: fn_decl.clone(),
+            },
+        );
+
+        Ok(())
     }
 
     fn register_let_declaration(&mut self, let_decl: &LetDecl) -> anyhow::Result<()> {
@@ -59,7 +71,12 @@ impl Interpreter {
     fn exec_statement(&mut self, stmt: &Statement) -> anyhow::Result<()> {
         match stmt {
             Statement::ExprStmt(expr_stmt) => self.exec_expression_statement(expr_stmt),
-            Statement::BlockStmt(block_stmt) => self.exec_block_statement(block_stmt),
+            Statement::BlockStmt(block_stmt) => self.exec_block_statement(
+                block_stmt,
+                Rc::new(RefCell::new(Environment::new(Some(Rc::clone(
+                    &self.current,
+                ))))),
+            ),
             Statement::IfStmt(if_stmt) => self.exec_if_statement(if_stmt),
             Statement::WhileStmt(while_stmt) => self.exec_while_statement(while_stmt),
         }
@@ -86,11 +103,13 @@ impl Interpreter {
         Ok(())
     }
 
-    fn exec_block_statement(&mut self, block_stmt: &BlockStmt) -> anyhow::Result<()> {
+    pub fn exec_block_statement(
+        &mut self,
+        block_stmt: &BlockStmt,
+        new_env: Rc<RefCell<Environment>>,
+    ) -> anyhow::Result<()> {
         let previous = Rc::clone(&self.current);
-        self.current = Rc::new(RefCell::new(Environment::new(Some(Rc::clone(
-            &self.current,
-        )))));
+        self.current = new_env;
 
         for decl in block_stmt.stmts.iter() {
             self.register_declaration(decl)?
@@ -128,7 +147,7 @@ impl Interpreter {
         Ok(value)
     }
 
-    fn eval_range(&mut self, range: &Range) -> anyhow::Result<Object> {
+    fn eval_range(&mut self, _range: &Range) -> anyhow::Result<Object> {
         todo!()
     }
 

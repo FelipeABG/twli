@@ -1,8 +1,6 @@
-let a = true;
-
-if a {
-  println("if_branch");
-} else {
-  println("else_branch");
+fn boo(a,b) {
+  println(a);
+  println(b);
 }
 
+println(boo);
