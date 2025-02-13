@@ -36,7 +36,7 @@ pub struct Function {
 impl Callable for Function {
     fn call(&mut self, interp: &mut Interpreter, args: Vec<Object>) -> anyhow::Result<Object> {
         let env = Rc::new(RefCell::new(Environment::new(Some(Rc::clone(
-            &interp.global,
+            &interp.current,
         )))));
 
         for idx in 0..self.declaration.params.len() {

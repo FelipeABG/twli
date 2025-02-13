@@ -1,5 +1,13 @@
-fn boo() {
-  return 10;
+fn make_counter() {
+  let i = 0;
+  fn count() {
+    i = i + 1;
+    println(i);
+  }
+
+  return count;
 }
 
-println(boo());
+let counter = make_counter();
+counter();
+counter();
