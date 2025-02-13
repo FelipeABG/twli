@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use anyhow::{anyhow, bail};
 
-use crate::runtime::Object;
+use crate::runtime::{Callable, Object};
 
 #[derive(Debug)]
 pub struct Environment {
@@ -20,6 +20,10 @@ impl Environment {
 
     pub fn define(&mut self, key: String, value: Object) {
         self.bindings.insert(key, value);
+    }
+
+    pub fn define_callable(&mut self, key: String, value: impl Callable + 'static) {
+        self.bindings.insert(key, Object::Callable(Box::new(value)));
     }
 
     pub fn get(&self, key: &str) -> anyhow::Result<Object> {

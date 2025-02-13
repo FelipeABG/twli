@@ -1,13 +1,11 @@
 use core::f64;
-use std::{
-    fmt::{Debug, Display},
-    ops,
-};
+use std::{fmt::Display, ops};
 
 use anyhow::bail;
 
-use crate::{interpreter::Interpreter, runtime_error};
+use crate::runtime_error;
 
+#[derive(Debug, Clone)]
 pub enum Object {
     Str(String),
     Boolean(bool),
@@ -17,10 +15,8 @@ pub enum Object {
 }
 
 pub trait Callable {
-    fn call(&mut self, interp: &mut Interpreter, args: Vec<Object>) -> anyhow::Result<Object>;
+    fn call(&mut self) -> anyhow::Result<Object>;
     fn arity(&self) -> usize;
-    fn to_string(&self) -> String;
-    fn clone_box(&self) -> Box<dyn Callable>;
 }
 
 impl Object {
@@ -64,7 +60,7 @@ impl Display for Object {
             Object::Boolean(b) => b.to_string(),
             Object::Number(n) => n.to_string(),
             Object::Null => "null".to_string(),
-            Object::Callable(callable) => callable.to_string(),
+            Object::Callable(callable) => todo!(),
         };
 
         write!(f, "{}", msg)
@@ -131,7 +127,7 @@ impl PartialOrd for Object {
         match (self, other) {
             (Object::Str(a), Object::Str(b)) => a.partial_cmp(b),
             (Object::Number(a), Object::Number(b)) => a.partial_cmp(b),
-            _ => None,
+            _ => None, // No valid ordering for other cases
         }
     }
 }
@@ -146,36 +142,5 @@ impl PartialEq for Object {
             (Object::Callable(_), Object::Callable(_)) => false,
             _ => false,
         }
-    }
-}
-
-impl Clone for Box<dyn Callable> {
-    fn clone(&self) -> Self {
-        self.clone_box()
-    }
-}
-
-impl Clone for Object {
-    fn clone(&self) -> Self {
-        match self {
-            Object::Number(n) => Object::Number(*n),
-            Object::Str(s) => Object::Str(s.clone()),
-            Object::Boolean(b) => Object::Boolean(*b),
-            Object::Null => Object::Null,
-            Object::Callable(c) => Object::Callable(c.clone()),
-        }
-    }
-}
-
-impl Debug for Object {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let msg = match self {
-            Object::Str(s) => format!("{s}"),
-            Object::Number(n) => format!("{n}"),
-            Object::Null => format!("null"),
-            Object::Boolean(b) => format!("{b}"),
-            Object::Callable(c) => format!("{}", c.to_string()),
-        };
-        write!(f, "{msg}")
     }
 }

@@ -4,6 +4,7 @@ pub mod interpreter;
 pub mod lexer;
 pub mod parser;
 pub mod runtime;
+pub mod std;
 pub mod token;
 use colored::Colorize;
 

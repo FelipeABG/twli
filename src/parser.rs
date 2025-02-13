@@ -379,8 +379,8 @@ impl Parser {
         loop {
             if let TokenType::LeftParen = self.peek().ty {
                 //consumes the '(' token
-                self.next_token();
-                callee = self.parse_fn_args(callee)?;
+                let token = self.next_token().clone();
+                callee = self.parse_fn_args(callee, token)?;
             } else {
                 break;
             }
@@ -446,7 +446,7 @@ impl Parser {
         Ok(params)
     }
 
-    fn parse_fn_args(&mut self, e: Expression) -> anyhow::Result<Expression> {
+    fn parse_fn_args(&mut self, e: Expression, paren_token: Token) -> anyhow::Result<Expression> {
         let mut args = Vec::new();
         while !matches!(self.peek().ty, TokenType::RightParen) {
             let arg = self.parse_expression()?;
@@ -461,7 +461,7 @@ impl Parser {
             "Expected ')' after function arguments",
             self.peek_previous().line,
         )?;
-        Ok(Expression::Call(Call::new(Box::new(e), args)))
+        Ok(Expression::Call(Call::new(Box::new(e), paren_token, args)))
     }
 
     fn synchronize(&mut self) {

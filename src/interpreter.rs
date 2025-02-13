@@ -10,6 +10,7 @@ use crate::{
     },
     runtime::Object,
     runtime_error,
+    std::Println,
     token::TokenType,
 };
 
@@ -21,6 +22,8 @@ pub struct Interpreter {
 impl Interpreter {
     pub fn new() -> Self {
         let global = Rc::new(RefCell::new(Environment::new(None)));
+        let mut borrow = RefCell::borrow_mut(&global);
+        borrow.define_callable("println".to_string(), Println {});
         Self {
             global: Rc::clone(&global),
             current: Rc::clone(&global),
@@ -215,7 +218,27 @@ impl Interpreter {
     }
 
     fn eval_call(&mut self, call: &Call) -> anyhow::Result<Object> {
-        todo!()
+        let callee = self.eval_expression(&call.callee)?;
+        let line = &call.paren_token.line;
+
+        let mut args = Vec::new();
+        for arg in &call.args {
+            args.push(self.eval_expression(&arg)?);
+        }
+
+        if let Object::Callable(mut c) = callee {
+            if c.arity() != args.len() {
+                let msg = &format!(
+                    "Expected {} argument(s), but {} were found",
+                    c.arity(),
+                    args.len()
+                );
+                bail!(runtime_error(line, msg))
+            }
+            return c.call(self, args);
+        }
+
+        bail!(runtime_error(line, "Expected callable object"))
     }
 
     fn eval_literal(&mut self, literal: &Literal) -> anyhow::Result<Object> {
