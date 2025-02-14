@@ -1,13 +1,10 @@
-fn make_counter() {
-  let i = 0;
-  fn count() {
-    i = i + 1;
-    println(i);
+let a = "global";
+{
+  fn showA() {
+    println(a);
   }
 
-  return count;
+  showA();
+  let a = "block";
+  showA();
 }
-
-let counter = make_counter();
-counter();
-counter();

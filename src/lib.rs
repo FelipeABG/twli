@@ -4,6 +4,7 @@ pub mod grammar;
 pub mod interpreter;
 pub mod lexer;
 pub mod parser;
+pub mod resolver;
 pub mod runtime;
 pub mod std;
 pub mod token;
