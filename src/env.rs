@@ -2,7 +2,11 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use anyhow::{anyhow, bail};
 
-use crate::runtime::{Callable, Object};
+use crate::{
+    error::syntax_error,
+    runtime::{Callable, Object},
+    token::Token,
+};
 
 #[derive(Debug)]
 pub struct Environment {
@@ -26,12 +30,15 @@ impl Environment {
         self.bindings.insert(key, Object::Callable(Box::new(value)));
     }
 
-    pub fn get(&self, key: &str) -> anyhow::Result<Object> {
-        match self.bindings.get(key) {
+    pub fn get(&self, key: &Token) -> anyhow::Result<Object> {
+        match self.bindings.get(&key.lexeme) {
             Some(obj) => Ok(obj.clone()),
             None => match &self.enclosing {
                 Some(enclosing) => RefCell::borrow(enclosing).get(key),
-                None => Err(anyhow!(format!("Undefined variable '{}'", key))),
+                None => Err(anyhow!(syntax_error(
+                    &key.line,
+                    &format!("Undefined variable '{}'", key.lexeme)
+                ))),
             },
         }
     }

@@ -137,7 +137,7 @@ impl Interpreter {
     fn eval_expression(&mut self, expr: &Expression) -> anyhow::Result<Object> {
         match expr {
             Expression::Literal(literal) => self.eval_literal(literal),
-            Expression::Var(token) => RefCell::borrow_mut(&self.current).get(&token.lexeme),
+            Expression::Var(token) => RefCell::borrow_mut(&self.current).get(&token),
             Expression::Call(call) => self.eval_call(call),
             Expression::Unary(unary) => self.eval_unary(unary),
             Expression::Binary(binary) => self.eval_binary(binary),
