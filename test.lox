@@ -1,10 +1,13 @@
-let a = "global";
-{
-  fn showA() {
-    println(a);
+fn make_counter() {
+  let i = 0;
+  fn count() {
+    i = i + 1;
+    println(i);
   }
 
-  showA();
-  let a = "block";
-  showA();
+  return count;
 }
+
+let counter = make_counter();
+counter();
+counter();
