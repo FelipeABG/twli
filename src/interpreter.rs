@@ -6,10 +6,10 @@ use crate::{
     env::Environment,
     error::{runtime_error, Return},
     grammar::{
-        Assignment, Binary, BlockStmt, Call, Declaration, ExprStmt, Expression, FnDecl, IfStmt,
-        LetDecl, Literal, Logical, Range, ReturnStmt, Statement, Unary, WhileStmt,
+        Assignment, Binary, BlockStmt, Call, ClassDecl, Declaration, ExprStmt, Expression, FnDecl,
+        IfStmt, LetDecl, Literal, Logical, Range, ReturnStmt, Statement, Unary, WhileStmt,
     },
-    runtime::{Function, Object},
+    runtime::{Class, Function, Object},
     std::Println,
     token::TokenType,
 };
@@ -43,7 +43,19 @@ impl Interpreter {
             Declaration::StmtDecl(stmt_decl) => self.exec_statement(&stmt_decl.stmt),
             Declaration::LetDecl(let_decl) => self.register_let_declaration(let_decl),
             Declaration::FnDecl(fn_decl) => self.register_function_declaration(fn_decl),
+            Declaration::ClassDecl(class_decl) => self.register_class_declaration(class_decl),
         }
+    }
+
+    fn register_class_declaration(&mut self, class_decl: &ClassDecl) -> anyhow::Result<()> {
+        let ident = class_decl.ident.lexeme.clone();
+        RefCell::borrow_mut(&self.current).define(ident.clone(), Object::Null);
+        RefCell::borrow_mut(&self.current).assign(
+            &ident,
+            Object::Callable(Box::new(Class {
+                ident: ident.clone(),
+            })),
+        )
     }
 
     fn register_function_declaration(&mut self, fn_decl: &FnDecl) -> anyhow::Result<()> {

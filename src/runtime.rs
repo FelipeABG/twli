@@ -28,6 +28,28 @@ pub enum Object {
     Null,
 }
 
+pub struct Class {
+    pub ident: String,
+}
+
+impl Callable for Class {
+    fn call(&mut self, interp: &mut Interpreter, args: Vec<Object>) -> anyhow::Result<Object> {}
+
+    fn arity(&self) -> usize {
+        0
+    }
+
+    fn to_string(&self) -> String {
+        format!("<class {}>", self.ident.clone())
+    }
+
+    fn clone_box(&self) -> Box<dyn Callable + Send + Sync + 'static> {
+        Box::new(Class {
+            ident: self.ident.clone(),
+        })
+    }
+}
+
 //user function definition
 pub struct Function {
     pub declaration: FnDecl,

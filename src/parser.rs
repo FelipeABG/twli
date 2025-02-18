@@ -3,8 +3,9 @@ use anyhow::bail;
 use crate::{
     error::syntax_error,
     grammar::{
-        Assignment, Binary, BlockStmt, Call, Declaration, ExprStmt, Expression, FnDecl, IfStmt,
-        LetDecl, Literal, Logical, Range, ReturnStmt, Statement, StmtDecl, Unary, WhileStmt,
+        Assignment, Binary, BlockStmt, Call, ClassDecl, Declaration, ExprStmt, Expression, FnDecl,
+        IfStmt, LetDecl, Literal, Logical, Range, ReturnStmt, Statement, StmtDecl, Unary,
+        WhileStmt,
     },
     token::{Token, TokenType},
 };
@@ -52,8 +53,44 @@ impl Parser {
             return self.parse_fn_statement();
         }
 
+        if let TokenType::Class = self.peek().ty {
+            return self.parse_class_statement();
+        }
+
         let stmt = self.parse_statment()?;
         Ok(Declaration::StmtDecl(StmtDecl::new(stmt)))
+    }
+
+    fn parse_class_statement(&mut self) -> anyhow::Result<Declaration> {
+        let class_token = self.next_token().clone();
+        let line = class_token.line;
+        let ident = self
+            .expect(TokenType::Identifier, "Expect class identifier", line)?
+            .clone();
+
+        self.expect(
+            TokenType::LeftBrace,
+            "Expect '{' at beggining of class body",
+            line,
+        )?;
+
+        let mut methods = Vec::new();
+        while !matches!(self.peek().ty, TokenType::RightBrace) && !self.finished() {
+            let fun = self.parse_fn_statement()?;
+            if let Declaration::FnDecl(decl) = fun {
+                methods.push(decl);
+            } else {
+                bail!(syntax_error(&line, "Expect only methods in class body"))
+            }
+        }
+
+        self.expect(
+            TokenType::RightBrace,
+            "Expect '}' at end of class declaration",
+            line,
+        )?;
+
+        Ok(Declaration::ClassDecl(ClassDecl::new(ident, methods)))
     }
 
     fn parse_let_declaration(&mut self) -> anyhow::Result<Declaration> {
