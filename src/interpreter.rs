@@ -7,7 +7,7 @@ use crate::{
     error::{runtime_error, Return},
     grammar::{
         Assignment, Binary, BlockStmt, Call, ClassDecl, Declaration, ExprStmt, Expression, FnDecl,
-        IfStmt, LetDecl, Literal, Logical, Range, ReturnStmt, Statement, Unary, WhileStmt,
+        Get, IfStmt, LetDecl, Literal, Logical, Range, ReturnStmt, Statement, Unary, WhileStmt,
     },
     runtime::{Class, Function, Object},
     std::Println,
@@ -157,7 +157,19 @@ impl Interpreter {
             Expression::Range(range) => self.eval_range(range),
             Expression::Grouping(expression) => self.eval_expression(expression),
             Expression::Assignment(assignment) => self.eval_assignment(assignment),
+            Expression::Get(get) => self.eval_get(get),
         }
+    }
+
+    fn eval_get(&mut self, get: &Get) -> anyhow::Result<Object> {
+        let obj = self.eval_expression(&get.object)?;
+        if let Object::Instance(inst) = obj {
+            return inst.get(&get.field)?;
+        }
+        bail!(runtime_error(
+            &get.field.line,
+            "Only class instances have fields"
+        ))
     }
 
     fn eval_assignment(&mut self, assignment: &Assignment) -> anyhow::Result<Object> {

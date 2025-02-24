@@ -3,11 +3,13 @@ use crate::{
     error::{runtime_error, Return},
     grammar::{FnDecl, Statement},
     interpreter::Interpreter,
+    token::Token,
 };
 use anyhow::bail;
 use core::f64;
 use std::{
     cell::RefCell,
+    collections::HashMap,
     fmt::{Debug, Display},
     ops,
     rc::Rc,
@@ -25,15 +27,47 @@ pub enum Object {
     Boolean(bool),
     Number(f64),
     Callable(Box<dyn Callable + Send + Sync + 'static>),
+    Instance(Instance),
     Null,
 }
 
+#[derive(Clone)]
+pub struct Instance {
+    class: Class,
+    fields: HashMap<String, Object>,
+}
+
+#[derive(Clone)]
 pub struct Class {
     pub ident: String,
 }
 
+impl Instance {
+    pub fn new(class: Class) -> Self {
+        Self {
+            class,
+            fields: HashMap::new(),
+        }
+    }
+
+    pub fn get(&self, key: &Token) -> anyhow::Result<Object> {
+        if self.fields.contains_key(&key.lexeme) {
+            return Ok(self.fields.get(&key.lexeme).unwrap().clone());
+        }
+
+        bail!(runtime_error(
+            &key.line,
+            &format!("Undefined field {}", key.lexeme)
+        ))
+    }
+}
+
 impl Callable for Class {
-    fn call(&mut self, interp: &mut Interpreter, args: Vec<Object>) -> anyhow::Result<Object> {}
+    fn call(&mut self, _: &mut Interpreter, _: Vec<Object>) -> anyhow::Result<Object> {
+        Ok(Object::Instance(Instance::new(Self {
+            ident: self.ident.clone(),
+        })))
+    }
 
     fn arity(&self) -> usize {
         0
@@ -136,6 +170,7 @@ impl Display for Object {
             Object::Number(n) => n.to_string(),
             Object::Null => "null".to_string(),
             Object::Callable(callable) => callable.to_string(),
+            Object::Instance(instance) => format!("<{} instance>", instance.class.ident.clone()),
         };
 
         write!(f, "{}", msg)
@@ -234,6 +269,7 @@ impl Clone for Object {
             Object::Boolean(b) => Object::Boolean(*b),
             Object::Null => Object::Null,
             Object::Callable(c) => Object::Callable(c.clone()),
+            Object::Instance(instance) => Object::Instance(instance.clone()),
         }
     }
 }
@@ -246,6 +282,7 @@ impl Debug for Object {
             Object::Null => format!("null"),
             Object::Boolean(b) => format!("{b}"),
             Object::Callable(c) => format!("{}", c.to_string()),
+            Object::Instance(instance) => format!("<{} instance>", instance.class.ident.clone()),
         };
         write!(f, "{msg}")
     }

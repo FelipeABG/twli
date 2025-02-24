@@ -4,7 +4,7 @@ use crate::{
     error::syntax_error,
     grammar::{
         Assignment, Binary, BlockStmt, Call, ClassDecl, Declaration, ExprStmt, Expression, FnDecl,
-        IfStmt, LetDecl, Literal, Logical, Range, ReturnStmt, Statement, StmtDecl, Unary,
+        Get, IfStmt, LetDecl, Literal, Logical, Range, ReturnStmt, Statement, StmtDecl, Unary,
         WhileStmt,
     },
     token::{Token, TokenType},
@@ -459,6 +459,16 @@ impl Parser {
                 //consumes the '(' token
                 let token = self.next_token().clone();
                 callee = self.parse_fn_args(callee, token)?;
+            } else if let TokenType::Dot = self.peek().ty {
+                let _dot = self.next_token();
+                let field = self
+                    .expect(
+                        TokenType::Identifier,
+                        "Expect property name after '.'",
+                        self.peek_previous().line,
+                    )?
+                    .clone();
+                callee = Expression::Get(Get::new(Box::new(callee), field));
             } else {
                 break;
             }

@@ -1,3 +1,11 @@
-class Foo {}
+fn main() {
+  class Person {
+    fn init() {
+      println("initializing");
+    }
+  }
 
-println(Foo);
+  println(Person());
+}
+
+main();
