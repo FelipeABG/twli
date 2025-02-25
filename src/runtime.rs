@@ -31,6 +31,10 @@ pub enum Object {
     Null,
 }
 
+pub struct Function {
+    pub declaration: FnDecl,
+}
+
 #[derive(Clone)]
 pub struct Instance {
     class: Class,
@@ -60,6 +64,10 @@ impl Instance {
             &format!("Undefined field {}", key.lexeme)
         ))
     }
+
+    pub fn set(&mut self, key: Token, value: Object) {
+        self.fields.insert(key.lexeme, value);
+    }
 }
 
 impl Callable for Class {
@@ -82,11 +90,6 @@ impl Callable for Class {
             ident: self.ident.clone(),
         })
     }
-}
-
-//user function definition
-pub struct Function {
-    pub declaration: FnDecl,
 }
 
 impl Callable for Function {

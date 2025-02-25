@@ -4,7 +4,7 @@ use crate::{
     error::syntax_error,
     grammar::{
         Assignment, Binary, BlockStmt, Call, ClassDecl, Declaration, ExprStmt, Expression, FnDecl,
-        Get, IfStmt, LetDecl, Literal, Logical, Range, ReturnStmt, Statement, StmtDecl, Unary,
+        Get, IfStmt, LetDecl, Literal, Logical, Range, ReturnStmt, Set, Statement, StmtDecl, Unary,
         WhileStmt,
     },
     token::{Token, TokenType},
@@ -340,6 +340,12 @@ impl Parser {
                 let ident = v;
                 return Ok(Expression::Assignment(Assignment::new(
                     ident,
+                    Box::new(value),
+                )));
+            } else if let Expression::Get(g) = expr {
+                return Ok(Expression::Set(Set::new(
+                    g.object,
+                    g.field,
                     Box::new(value),
                 )));
             }

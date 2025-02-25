@@ -1,11 +1,9 @@
-fn main() {
-  class Person {
-    fn init() {
-      println("initializing");
-    }
+class Person {
+  fn init() {
+    println("initializing");
   }
-
-  println(Person());
 }
 
-main();
+let person = Person();
+person.name = "felipe";
+println(person.name);

@@ -7,7 +7,8 @@ use crate::{
     error::{runtime_error, Return},
     grammar::{
         Assignment, Binary, BlockStmt, Call, ClassDecl, Declaration, ExprStmt, Expression, FnDecl,
-        Get, IfStmt, LetDecl, Literal, Logical, Range, ReturnStmt, Statement, Unary, WhileStmt,
+        Get, IfStmt, LetDecl, Literal, Logical, Range, ReturnStmt, Set, Statement, Unary,
+        WhileStmt,
     },
     runtime::{Class, Function, Object},
     std::Println,
@@ -158,13 +159,33 @@ impl Interpreter {
             Expression::Grouping(expression) => self.eval_expression(expression),
             Expression::Assignment(assignment) => self.eval_assignment(assignment),
             Expression::Get(get) => self.eval_get(get),
+            Expression::Set(set) => self.eval_set(set),
         }
+    }
+
+    fn eval_set(&mut self, set: &Set) -> anyhow::Result<Object> {
+        let obj = self.eval_expression(&set.object)?;
+
+        if !matches!(obj, Object::Instance(_)) {
+            bail!(runtime_error(
+                &set.field.line,
+                "Only class instances have fields"
+            ))
+        }
+
+        if let Object::Instance(mut i) = obj {
+            let value = self.eval_expression(&set.value)?;
+            i.set(set.field.clone(), value.clone());
+            return Ok(value);
+        }
+
+        Ok(Object::Null)
     }
 
     fn eval_get(&mut self, get: &Get) -> anyhow::Result<Object> {
         let obj = self.eval_expression(&get.object)?;
         if let Object::Instance(inst) = obj {
-            return inst.get(&get.field)?;
+            return inst.get(&get.field);
         }
         bail!(runtime_error(
             &get.field.line,
